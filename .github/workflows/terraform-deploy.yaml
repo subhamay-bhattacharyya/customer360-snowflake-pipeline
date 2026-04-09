@@ -16,7 +16,7 @@ permissions:
 jobs:
   terraform-deploy-platform:
     name: Deploy
-    uses: subhamay-bhattacharyya-gha/tf-deploy-multi-reusable-wf/.github/workflows/terraform-deploy.yaml@feature/GHA-0019-add-platform-based-multi
+    uses: subhamay-bhattacharyya-gha/tf-deploy-multi-reusable-wf/.github/workflows/terraform-deploy.yaml@main
     with:
       cloud-provider: snowflake
       tflint-ver: ${{ vars.TF_LINT_VER }}
