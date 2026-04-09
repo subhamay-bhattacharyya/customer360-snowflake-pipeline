@@ -1,0 +1,65 @@
+{
+  "regions": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "REGIONS",
+    "script_path": "seed-data/regions.sql",
+    "rerun_on_script_change": true
+  },
+  "countries": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "COUNTRIES",
+    "script_path": "seed-data/countries.sql",
+    "rerun_on_script_change": true
+  },
+  "locations": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "LOCATIONS",
+    "script_path": "seed-data/locations.sql",
+    "rerun_on_script_change": true
+  },
+  "jobs": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "JOBS",
+    "script_path": "seed-data/jobs.sql",
+    "rerun_on_script_change": true
+  },
+  "departments": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "DEPARTMENTS",
+    "script_path": "seed-data/departments.sql",
+    "rerun_on_script_change": true
+  },
+  "employees": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "EMPLOYEES",
+    "script_path": "seed-data/employees.sql",
+    "rerun_on_script_change": true
+  },
+  "job_history": {
+    "enabled": true,
+    "environment": "dev",
+    "database": "HRMS",
+    "schema": "HR",
+    "table": "JOB_HISTORY",
+    "script_path": "seed-data/job_history.sql",
+    "rerun_on_script_change": true
+  }
+}
