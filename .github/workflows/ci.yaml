@@ -10,6 +10,7 @@ on:
     paths:
       - infra/platform/tf/**
       - input-jsons/**
+      - .github/workflows/ci.yaml
   pull_request:
     branches: [main]
     paths:
@@ -30,7 +31,7 @@ jobs:
     name: CI
     uses: subhamay-bhattacharyya-gha/tf-ci-reusable-wf/.github/workflows/ci.yaml@feature/GHA-0043-featci-add-checkov-securi
     with:
-      cloud-provider: snowflake
+      cloud-provider: platform
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
       tf-vars-file: tfvar/${{ github.event.inputs.environment }}/terraform.tfvars
