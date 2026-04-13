@@ -204,7 +204,7 @@
           "snowpipes": {
             "raw_aqi_pipe": {
               "name": "RAW_AQI_PIPE",
-              "copy_template": "raw_aqi_copy.tpl",
+              "copy_template": "raw_northbridge_copy.tpl",
               "table": "RAW_AQI",
               "stage": "RAW_EXTERNAL_STG",
               "file_format": "JSON_FILE_FORMAT",
@@ -220,7 +220,7 @@
             "clean_aqi_dt": {
               "name": "CLEAN_AQI_DT",
               "target_lag": "downstream",
-              "query_template_file": "clean_aqi.tpl",
+              "query_template_file": "clean_northbridge.tpl",
               "warehouse": "load_wh",
               "source_schema": "BRONZE",
               "source_table": "RAW_AQI",

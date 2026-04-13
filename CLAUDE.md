@@ -18,7 +18,7 @@ This project uses a set of installed skills. Claude Code **must consult the rele
 
 | Skill                      | Consult when editing                                             |
 | -------------------------- | ---------------------------------------------------------------- |
-| `aws-config-s3`            | `aws.region`, `aws.s3.*`, `aws.tf_state.*`                      |
+| `aws-config-s3`            | `aws.region`, `aws.s3.*`, `aws.tf_state.*`                       |
 | `aws-config-iam-policies`  | `aws.iam.role_name`, `aws.iam.policies[]`                        |
 | `aws-config-trust`         | `trust.snowflake_principal_arn`, `trust.snowflake_external_id`   |
 
@@ -148,10 +148,10 @@ Terraform reads all resource definitions from JSON config files. **Never hardcod
 
 > **Always consult the relevant skill before editing a config file.** See the [Skills](#skills) section above for the skill-to-block mapping.
 
-| File                                     | Purpose                                                                                                   | Skills                                                                                                                                                  |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `input-jsons/aws/config.json`            | S3, IAM role, IAM policies, trust block                                                                   | `aws-config-s3`, `aws-config-iam-policies`, `aws-config-trust`                                                                                          |
-| `input-jsons/snowflake/config.json`      | Warehouses, database, schemas, stages, file formats, tables, streams, tasks, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-streams-tasks-pipes`, `snowflake-config-dynamic-tables-functions`    |
+| File                                | Purpose                                                                                                          | Skills                                                                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `input-jsons/aws/config.json`       | S3, IAM role, IAM policies, trust block                                                                          | `aws-config-s3`, `aws-config-iam-policies`, `aws-config-trust`                                                                                        |
+| `input-jsons/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, streams, tasks, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-streams-tasks-pipes`, `snowflake-config-dynamic-tables-functions` |
 
 `input-jsons/snowflake/config.backup.json` is a safe reference copy — do not delete or overwrite it.
 

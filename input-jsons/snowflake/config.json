@@ -225,7 +225,7 @@
               "table": "RAW_NORTHBRIDGE",
               "stage": "RAW_EXTERNAL_STG",
               "file_format": "JSON_FILE_FORMAT",
-              "copy_template": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
+              "copy_template": "raw_northbridge_copy.tpl",
               "auto_ingest": true,
               "filter_suffix": ".json",
               "comment": "Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
@@ -244,7 +244,7 @@
               "target_lag": "downstream",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
-              "query_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
+              "query_template_file": "clean_northbridge.tpl",
               "comment": "Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
               "grants": [
                 {

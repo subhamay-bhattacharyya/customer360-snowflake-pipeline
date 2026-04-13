@@ -1,6 +1,6 @@
 # Snowflake Dynamic Table Tutorial
 
-![Built with Kiro](https://img.shields.io/badge/Built_with-Kiro-8845f4?logo=robot&logoColor=white)&nbsp;![Commit Activity](https://img.shields.io/github/commit-activity/t/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Last Commit](https://img.shields.io/github/last-commit/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Release Date](https://img.shields.io/github/release-date/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Repo Size](https://img.shields.io/github/repo-size/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![File Count](https://img.shields.io/github/directory-file-count/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Issues](https://img.shields.io/github/issues/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Top Language](https://img.shields.io/github/languages/top/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Custom Endpoint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/bsubhamay/62c0119f3568e2b8e12f9b1b9cd1c80d/raw/snowflake-dynamic-table-tutorial.json?)
+![Built with Kiro](https://img.shields.io/badge/Built_with-Kiro-8845f4?logo=robot&logoColor=white)&nbsp;![Commit Activity](https://img.shields.io/github/commit-activity/t/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Last Commit](https://img.shields.io/github/last-commit/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Release Date](https://img.shields.io/github/release-date/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Repo Size](https://img.shields.io/github/repo-size/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![File Count](https://img.shields.io/github/directory-file-count/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Issues](https://img.shields.io/github/issues/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Top Language](https://img.shields.io/github/languages/top/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Custom Endpoint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/bsubhamay/62c0119f3568e2b8e12f9b1b9cd1c80d/raw/customer360-snowflake-pipeline.json?)
 
 A hands-on tutorial for Snowflake Dynamic Tables with Infrastructure as Code (Terraform) and automated deployment using GitHub Actions.
 
@@ -17,12 +17,12 @@ This tutorial demonstrates Snowflake Dynamic Tables - a declarative data transfo
 
 Dynamic Tables provide declarative data transformation pipelines with automatic refresh capabilities. Key parameters:
 
-| Parameter | Options | Description |
-|-----------|---------|-------------|
-| TARGET_LAG | Time interval (e.g., '60 minutes') or 'DOWNSTREAM' | Maximum staleness allowed for the dynamic table data |
-| REFRESH_MODE | AUTO, FULL, INCREMENTAL | How the table refreshes (AUTO tries INCREMENTAL first, then FULL) |
-| INITIALIZE | ON_CREATE, ON_SCHEDULE | When to populate the table initially |
-| WAREHOUSE | Warehouse name | Required compute resource for refresh operations |
+| Parameter    | Options                                           | Description                                                       |
+| ------------ | ------------------------------------------------- | ----------------------------------------------------------------- |
+| TARGET_LAG   | Time interval (e.g., '60 minutes') or 'DOWNSTREAM' | Maximum staleness allowed for the dynamic table data              |
+| REFRESH_MODE | AUTO, FULL, INCREMENTAL                           | How the table refreshes (AUTO tries INCREMENTAL first, then FULL) |
+| INITIALIZE   | ON_CREATE, ON_SCHEDULE                            | When to populate the table initially                              |
+| WAREHOUSE    | Warehouse name                                    | Required compute resource for refresh operations                  |
 
 ## Dynamic Table SQL Reference
 
@@ -222,11 +222,11 @@ SELECT EMPLOYEE_ID, EMAIL FROM DT_EMP_DEPT_DOWNSTREAM_ON_CREATE WHERE EMPLOYEE_I
 
 This tutorial implements three dynamic tables demonstrating different configurations:
 
-| Dynamic Table | TARGET_LAG | INITIALIZE | Use Case |
-|---------------|------------|------------|----------|
-| DT_EMP_DEPT_LAG_60_ON_SCHEDULE | 60 minutes | ON_SCHEDULE | Deferred initial load, automatic refresh |
-| DT_EMP_DEPT_LAG_60_ON_CREATE | 60 minutes | ON_CREATE | Immediate initial load, automatic refresh |
-| DT_EMP_DEPT_DOWNSTREAM_ON_CREATE | DOWNSTREAM | ON_CREATE | Manual refresh only, immediate initial load |
+| Dynamic Table                      | TARGET_LAG | INITIALIZE  | Use Case                                      |
+| ---------------------------------- | ---------- | ----------- | --------------------------------------------- |
+| DT_EMP_DEPT_LAG_60_ON_SCHEDULE     | 60 minutes | ON_SCHEDULE | Deferred initial load, automatic refresh      |
+| DT_EMP_DEPT_LAG_60_ON_CREATE       | 60 minutes | ON_CREATE   | Immediate initial load, automatic refresh     |
+| DT_EMP_DEPT_DOWNSTREAM_ON_CREATE   | DOWNSTREAM | ON_CREATE   | Manual refresh only, immediate initial load   |
 
 ## Repository Structure
 
@@ -310,15 +310,15 @@ terraform apply
 
 The tutorial uses an HRMS (Human Resource Management System) database with the following tables:
 
-| Table | Description |
-|-------|-------------|
-| EMPLOYEES | Employee information (ID, name, email, salary, etc.) |
-| DEPARTMENTS | Department details (ID, name, manager, location) |
-| LOCATIONS | Office locations |
-| COUNTRIES | Country reference data |
-| REGIONS | Geographic regions |
-| JOBS | Job titles and salary ranges |
-| JOB_HISTORY | Employee job history |
+| Table       | Description                                          |
+| ----------- | ---------------------------------------------------- |
+| EMPLOYEES   | Employee information (ID, name, email, salary, etc.) |
+| DEPARTMENTS | Department details (ID, name, manager, location)     |
+| LOCATIONS   | Office locations                                     |
+| COUNTRIES   | Country reference data                               |
+| REGIONS     | Geographic regions                                   |
+| JOBS        | Job titles and salary ranges                         |
+| JOB_HISTORY | Employee job history                                 |
 
 ## Key Learnings
 
