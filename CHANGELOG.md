@@ -8,9 +8,11 @@ All notable changes to this project will be documented in this file.
 
 - Adjust formatting in README.md for clarity
 - Disable versioning in S3 bucket configuration
+- Correct formatting in environment validation condition
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
