@@ -6,7 +6,7 @@ on:
     branches:
       - 'main'
       - 'feature/**'
-      # - 'bug/**'
+      - 'bug/**'
     paths:
       - infra/platform/tf/**
       - input-jsons/**
