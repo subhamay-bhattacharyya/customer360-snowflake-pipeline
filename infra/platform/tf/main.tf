@@ -65,7 +65,7 @@ module "s3" {
 # • 1.2 IAM Role for Snowflake storage integration (initial with placeholder trust)
 # ----------------------------------------------------------------------------
 module "iam_role" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-iam/modules/role?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-aws-iam.git//modules/role?ref=main"
 
   iam_role = local.iam_role_config
 
@@ -80,7 +80,7 @@ module "iam_role" {
 # • 2.1 Warehouses
 # ----------------------------------------------------------------------------
 module "warehouse" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-warehouse?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-warehouse.git?ref=main"
 
   providers = {
     snowflake = snowflake.warehouse_provisioner
@@ -93,7 +93,7 @@ module "warehouse" {
 # • 2.2 Databases and Schemas
 # ----------------------------------------------------------------------------
 module "database_schemas" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-database-schema?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-database-schema.git?ref=main"
 
   providers = {
     snowflake = snowflake.db_provisioner
@@ -106,7 +106,7 @@ module "database_schemas" {
 # • 2.3 File Formats
 # ----------------------------------------------------------------------------
 module "file_formats" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-file-format?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-file-format.git?ref=main"
 
   providers = {
     snowflake = snowflake.data_object_provisioner
@@ -121,7 +121,7 @@ module "file_formats" {
 # • 2.4 Storage Integrations
 # ----------------------------------------------------------------------------
 module "storage_integrations" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-storage-integration?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-storage-integration.git?ref=main"
 
   providers = {
     snowflake = snowflake.ingest_object_provisioner
@@ -136,7 +136,7 @@ module "storage_integrations" {
 # • 2.5 Stages
 # ----------------------------------------------------------------------------
 module "stage" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-stage?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-stage.git?ref=main"
 
   providers = {
     snowflake = snowflake.ingest_object_provisioner
@@ -151,7 +151,7 @@ module "stage" {
 # • 2.6 Tables
 # ----------------------------------------------------------------------------
 module "table" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-table?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-table.git?ref=main"
 
   providers = {
     snowflake = snowflake.data_object_provisioner
@@ -199,7 +199,7 @@ module "aws_iam_role_final" {
 # • 4.1 Snowpipe creation
 # ----------------------------------------------------------------------------
 module "pipe" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-pipe?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-pipe.git?ref=main"
 
   providers = {
     snowflake = snowflake.ingest_object_provisioner
@@ -217,7 +217,7 @@ module "pipe" {
 # • 4.2 S3 Event Notifications for Snowpipe Auto-Ingest
 # ----------------------------------------------------------------------------
 module "s3_notification" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-s3-bucket/modules/event-notification?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-aws-s3-bucket.git//modules/event-notification?ref=main"
 
   bucket_name = local.s3_config.bucket_name
 
@@ -242,7 +242,7 @@ module "s3_notification" {
 # • 5.1 Dynamic Table Module
 # ----------------------------------------------------------------------------
 module "dynamic_table" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-snowflake-dynamic-table?ref=main"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-dynamic-table.git?ref=main"
 
   providers = {
     snowflake = snowflake.data_object_provisioner
