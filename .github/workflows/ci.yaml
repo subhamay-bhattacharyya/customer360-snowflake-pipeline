@@ -8,12 +8,12 @@ on:
       - 'feature/**'
       - 'bug/**'
     paths:
-      - infra/snowflake/tf/**
+      - infra/platform/tf/**
       - input-jsons/**
   pull_request:
     branches: [main]
     paths:
-      - infra/snowflake/tf/**
+      - infra/platform/tf/**
       - input-jsons/**
   workflow_dispatch:
 

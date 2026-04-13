@@ -64,13 +64,13 @@ module "s3" {
 # ----------------------------------------------------------------------------
 # • 1.2 IAM Role for Snowflake storage integration (initial with placeholder trust)
 # ----------------------------------------------------------------------------
-# module "iam_role" {
-#   source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-iam/modules/role?ref=main"
+module "iam_role" {
+  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-iam/modules/role?ref=main"
 
-#   iam_role = local.iam_role_config
+  iam_role = local.iam_role_config
 
-#   depends_on = [module.s3]
-# }
+  depends_on = [module.s3]
+}
 
 # ============================================================================
 # PHASE 2: Snowflake Resources
