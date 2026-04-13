@@ -3,7 +3,6 @@
 # Local Values
 # ============================================================================
 
-data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 # Compute KMS key alias first (no dependency on s3_config)
@@ -18,8 +17,6 @@ data "aws_kms_key" "kms" {
 }
 
 locals {
-  current_region = data.aws_region.current.id
-
   # Parse config from JSON files (relative to module path)
   aws_config_file       = jsondecode(file("${path.module}/${var.aws_config_path}"))
   snowflake_config_file = jsondecode(file("${path.module}/${var.snowflake_config_path}"))
