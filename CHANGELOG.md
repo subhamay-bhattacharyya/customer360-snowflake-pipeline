@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
 
 ### Features
 
