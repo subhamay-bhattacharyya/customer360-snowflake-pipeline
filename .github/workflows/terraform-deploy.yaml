@@ -4,6 +4,11 @@ run-name: >
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: environment
+        required: true
 
 concurrency:
   group: terraform-deploy-${{ github.ref }}
@@ -16,13 +21,13 @@ permissions:
 jobs:
   terraform-deploy-platform:
     name: Deploy
-    uses: subhamay-bhattacharyya-gha/tf-deploy-multi-reusable-wf/.github/workflows/terraform-deploy.yaml@feature/GHA-0019-add-platform-based-multi
+    uses: subhamay-bhattacharyya-gha/tf-deploy-multi-reusable-wf/.github/workflows/terraform-deploy.yaml@main
     with:
       cloud-provider: snowflake
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
       aws-region: ${{ vars.AWS_REGION }}
-      tf-vars-file: terraform.tfvars
+      tf-vars-file: tfvar/${{ github.event.inputs.environment }}/terraform.tfvars
       snowflake-user: ${{ vars.SNOWFLAKE_USER }}
       snowflake-organization-name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
       snowflake-account-name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
