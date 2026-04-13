@@ -7,9 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 - Adjust formatting in README.md for clarity
+- Disable versioning in S3 bucket configuration
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
