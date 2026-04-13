@@ -21,11 +21,11 @@ locals {
   # current_region = data.aws_region.current.id
 
   # Parse config from JSON files (relative to module path)
-  aws_config_file       = jsondecode(file("${path.module}/${var.aws_config_path}"))
+  aws_config_file = jsondecode(file("${path.module}/${var.aws_config_path}"))
   # snowflake_config_file = jsondecode(file("${path.module}/${var.snowflake_config_path}"))
 
   # Extract nested sections
-  aws_config       = local.aws_config_file.aws
+  aws_config = local.aws_config_file.aws
   # snowflake_config = local.snowflake_config_file
   # trust_config     = local.aws_config_file.trust
 
@@ -69,35 +69,35 @@ locals {
       bucket_name    = "${var.project_code}-${local.aws_config.s3.bucket_name}-${var.environment}-${local.aws_config.region}"
     })
   }
-}   //// End of locals
-  # IAM Role Configuration
-  # iam_role_config = {
-  #   name               = "${var.project_code}-${local.aws_config.iam.role_name}-${var.environment}"
-  #   assume_role_policy = local.assume_role_policy
-  #   s3_bucket_arn      = "arn:aws:s3:::${local.s3_config.bucket_name}"
-  #   kms_key_arn        = local.kms_key_alias != null ? data.aws_kms_key.kms[0].arn : null
-  #   inline_policies = [
-  #     for policy in local.aws_config.iam.policies : {
-  #       name = policy.name
-  #       policy = jsonencode({
-  #         Version = "2012-10-17"
-  #         Statement = [{
-  #           Sid    = policy.sid
-  #           Effect = policy.effect
-  #           Action = policy.action
-  #           Resource = (
-  #             policy.resource == "s3-bucket-arn" ? "arn:aws:s3:::${local.s3_config.bucket_name}" :
-  #             policy.resource == "s3-bucket-arn/*" ? "arn:aws:s3:::${local.s3_config.bucket_name}/*" :
-  #             policy.resource == "kms-key-arn" ? (local.kms_key_alias != null ? data.aws_kms_key.kms[0].arn : "*") :
-  #             policy.resource
-  #           )
-  #         }]
-  #       })
-  #     }
-  #   ]
-  # }
+} //// End of locals
+# IAM Role Configuration
+# iam_role_config = {
+#   name               = "${var.project_code}-${local.aws_config.iam.role_name}-${var.environment}"
+#   assume_role_policy = local.assume_role_policy
+#   s3_bucket_arn      = "arn:aws:s3:::${local.s3_config.bucket_name}"
+#   kms_key_arn        = local.kms_key_alias != null ? data.aws_kms_key.kms[0].arn : null
+#   inline_policies = [
+#     for policy in local.aws_config.iam.policies : {
+#       name = policy.name
+#       policy = jsonencode({
+#         Version = "2012-10-17"
+#         Statement = [{
+#           Sid    = policy.sid
+#           Effect = policy.effect
+#           Action = policy.action
+#           Resource = (
+#             policy.resource == "s3-bucket-arn" ? "arn:aws:s3:::${local.s3_config.bucket_name}" :
+#             policy.resource == "s3-bucket-arn/*" ? "arn:aws:s3:::${local.s3_config.bucket_name}/*" :
+#             policy.resource == "kms-key-arn" ? (local.kms_key_alias != null ? data.aws_kms_key.kms[0].arn : "*") :
+#             policy.resource
+#           )
+#         }]
+#       })
+#     }
+#   ]
+# }
 
-  # Runtime values from module output (only available after storage integration is created)
+# Runtime values from module output (only available after storage integration is created)
 #   aws_storage_integrations       = try(module.storage_integrations.aws_storage_integrations, {})
 #   first_integration_key          = length(keys(local.aws_storage_integrations)) > 0 ? keys(local.aws_storage_integrations)[0] : null
 #   first_storage_integration      = local.first_integration_key != null ? local.aws_storage_integrations[local.first_integration_key] : null
