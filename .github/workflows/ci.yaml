@@ -2,14 +2,14 @@ name: Terraform CI
 run-name: Build run by ${{ github.actor }} on ${{ github.ref_name }}
 
 on:
-  # push:
-  #   branches:
-  #     - 'main'
-  #     - 'feature/**'
-  #     - 'bug/**'
-  #   paths:
-  #     - infra/snowflake/tf/**
-  #     - input-jsons/**
+  push:
+    branches:
+      - 'main'
+      - 'feature/**'
+      - 'bug/**'
+    paths:
+      - infra/snowflake/tf/**
+      - input-jsons/**
   pull_request:
     branches: [main]
     paths:
