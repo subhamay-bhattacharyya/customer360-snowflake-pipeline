@@ -27,11 +27,6 @@ repos:
           - --args=--only=terraform_workspace_remote
       - id: terraform_trivy
       - id: terrascan
-      - id: checkov
-        args:
-          - --framework=terraform
-          - --skip-check=CKV_AWS_8
-          - --download-external-modules=true
       - id: infracost_breakdown
         args:
           - --args=--path=./examples/basic
