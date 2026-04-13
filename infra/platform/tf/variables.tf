@@ -17,7 +17,7 @@ variable "environment" {
 variable "project_code" {
   description = "Project code prefix for resource naming (e.g., snw-lkh)"
   type        = string
-  default     = "cust360sf"
+  default     = "cust360"
 }
 
 # ============================================================================
