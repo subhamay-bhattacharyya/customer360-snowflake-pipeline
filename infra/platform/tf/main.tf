@@ -56,7 +56,7 @@
 # • 1.1 S3 Bucket for Snowflake external stage
 # ----------------------------------------------------------------------------
 module "s3" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-s3/modules/bucket?ref=2d48ef9b8801dbf68b01fdbe6a47f47dee38f69b"
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-aws-s3.git//modules/bucket?ref=v1.0.0"
 
   s3_config = local.s3_config
 }
