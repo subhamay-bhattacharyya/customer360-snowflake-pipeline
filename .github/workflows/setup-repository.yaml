@@ -1,0 +1,41 @@
+name: Onboard AWS Project
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/onboard-aws-project.yaml"
+  workflow_dispatch:
+
+jobs:
+  load-config:
+    name: Load env.json
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      config: ${{ steps.load.outputs.config }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Read env.json
+        id: load
+        run: |
+          if [ ! -f env.json ]; then
+            echo "ERROR: env.json not found in repo root"
+            exit 1
+          fi
+          CONFIG=$(jq -c 'del(.. | ._comment?)' env.json)
+          echo "config=$CONFIG" >> "$GITHUB_OUTPUT"
+
+  onboard:
+    name: Onboard AWS Project
+    needs: load-config
+    uses: subhamay-bhattacharyya-gha/aws-project-onboarding/.github/workflows/aws-project-onboarding.yaml@main
+    with:
+      config: ${{ needs.load-config.outputs.config }}
+    secrets:
+      TFE_TOKEN: ${{ secrets.TFE_TOKEN }}
+      TF_VCS_OAUTH_TOKEN_ID: ${{ secrets.TF_VCS_OAUTH_TOKEN_ID }}
+      GITHUB_PAT: ${{ secrets.GH_PAT }}

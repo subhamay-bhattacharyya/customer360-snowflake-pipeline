@@ -1,0 +1,258 @@
+{
+  "storage_integrations": {
+    "s3": {
+      "name": "S3_STORAGE_INTEGRATION",
+      "storage_provider": "S3",
+      "storage_allowed_locations": [
+        "raw-data/json"
+      ],
+      "enabled": true,
+      "comment": "Storage integration for S3 bucket access"
+    }
+  },
+  "warehouses": {
+    "load_wh": {
+      "name": "LOAD_WH",
+      "comment": "Dedicated ingestion warehouse for loading files from stages into Bronze tables using COPY operations and batch loads.",
+      "warehouse_size": "MEDIUM",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    },
+    "transform_wh": {
+      "name": "TRANSFORM_WH",
+      "comment": "ETL/ELT warehouse for heavy SQL transformations, merges, joins, and pipeline processing from Bronze → Silver → Gold.",
+      "warehouse_size": "X-SMALL",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    },
+    "streamlit_wh": {
+      "name": "STREAMLIT_WH",
+      "comment": "Lightweight warehouse optimized for low-latency dashboard queries and interactive Streamlit app usage.",
+      "warehouse_size": "X-SMALL",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    },
+    "adhoc_wh": {
+      "name": "ADHOC_WH",
+      "comment": "Development and sandbox warehouse for ad-hoc queries, experimentation, troubleshooting, and testing.",
+      "warehouse_size": "X-SMALL",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    }
+  },
+  "databases": {
+    "aqi_database": {
+      "name": "AQI_DATABASE",
+      "comment": "Central analytical database hosting ingestion, transformation, modeling, and presentation layers for the AQI platform.",
+      "schemas": [
+        {
+          "name": "BRONZE",
+          "comment": "Raw - Landing zone for raw source data (JSON/CSV/Parquet). Minimal transformations. Supports replay and auditing.",
+          "stages": {
+            "raw_external_stg": {
+              "name": "RAW_EXTERNAL_STG",
+              "stage_type": "external",
+              "file_format": "JSON",
+              "url": "s3://the-s3-bucket/raw-data/json/",
+              "comment": "External stage for storing incoming AQI raw files before COPY ingestion."
+            },
+            "raw_internal_stg": {
+              "name": "RAW_INTERNAL_STG",
+              "stage_type": "internal",
+              "file_format": "JSON",
+              "directory_enabled": true,
+              "comment": "Internal stage for temporary file storage and processing."
+            }
+          },
+          "file_formats": {
+            "json_file_format": {
+              "name": "JSON_FILE_FORMAT",
+              "type": "JSON",
+              "compression": "AUTO",
+              "enable_octal": false,
+              "allow_duplicate": false,
+              "strip_outer_array": false,
+              "strip_null_values": false,
+              "ignore_utf8_errors": false,
+              "comment": "JSON parsing configuration for raw ingestion."
+            }
+          },
+          "tables": {
+            "raw_aqi": {
+              "database": "AQI_DATABASE",
+              "schema": "BRONZE",
+              "name": "RAW_AQI",
+              "table_type": "TRANSIENT",
+              "drop_before_create": true,
+              "comment": "Raw ingestion table storing AQI payloads as VARIANT with metadata columns.",
+              "columns": [
+                {
+                  "name": "ID",
+                  "type": "NUMBER(38,0)",
+                  "nullable": false,
+                  "comment": "Primary key with autoincrement",
+                  "autoincrement": {
+                    "start": 1,
+                    "increment": 1,
+                    "order": false
+                  }
+                },
+                {
+                  "name": "INDEX_RECORD_TS",
+                  "type": "TIMESTAMP_NTZ",
+                  "nullable": false,
+                  "comment": "Timestamp of the AQI index record"
+                },
+                {
+                  "name": "JSON_DATA",
+                  "type": "VARIANT",
+                  "nullable": false,
+                  "comment": "Raw JSON payload from AQI source"
+                },
+                {
+                  "name": "RECORD_COUNT",
+                  "type": "NUMBER(38,0)",
+                  "nullable": false,
+                  "comment": "Number of records in the JSON payload"
+                },
+                {
+                  "name": "JSON_VERSION",
+                  "type": "VARCHAR(255)",
+                  "nullable": false,
+                  "comment": "Version of the JSON schema"
+                },
+                {
+                  "name": "_STG_FILE_NAME",
+                  "type": "VARCHAR(500)",
+                  "nullable": true,
+                  "comment": "Audit - Source stage file name"
+                },
+                {
+                  "name": "_STG_FILE_LOAD_TS",
+                  "type": "TIMESTAMP_NTZ",
+                  "nullable": true,
+                  "comment": "Audit - Stage file load timestamp"
+                },
+                {
+                  "name": "_STG_FILE_MD5",
+                  "type": "VARCHAR(32)",
+                  "nullable": true,
+                  "comment": "Audit - MD5 hash of the stage file"
+                },
+                {
+                  "name": "_COPY_DATA_TS",
+                  "type": "TIMESTAMP_NTZ",
+                  "nullable": true,
+                  "comment": "Audit - Timestamp when data was copied"
+                }
+              ],
+              "primary_key": {
+                "keys": [
+                  "ID"
+                ]
+              }
+            }
+          },
+          "streams": {
+            "raw_aqi_stream": {
+              "name": "RAW_AQI_STREAM",
+              "source": "RAW_AQI",
+              "comment": "Captures incremental inserts/updates to trigger downstream task execution."
+            }
+          },
+          "tasks": {
+            "copy_air_quality_data": {
+              "name": "COPY_AIR_QUALITY_DATA",
+              "warehouse": "LOAD_WH",
+              "comment": "Scheduled COPY INTO from stage to bronze table."
+            },
+            "process_aqi_stream_task": {
+              "name": "PROCESS_AQI_STREAM_TASK",
+              "warehouse": "TRANSFORM_WH",
+              "comment": "Triggered by stream changes; runs transformations bronze → silver → gold."
+            },
+            "refresh_weather_data_task": {
+              "name": "REFRESH_WEATHER_DATA_TASK",
+              "warehouse": "TRANSFORM_WH",
+              "comment": "Periodic enrichment refresh task."
+            }
+          },
+          "snowpipes": {
+            "raw_aqi_pipe": {
+              "name": "RAW_AQI_PIPE",
+              "copy_template": "raw_aqi_copy.tpl",
+              "table": "RAW_AQI",
+              "stage": "RAW_EXTERNAL_STG",
+              "file_format": "JSON_FILE_FORMAT",
+              "auto_ingest": true,
+              "comment": "Auto-ingest pipe for raw AQI JSON data from S3"
+            }
+          }
+        },
+        {
+          "name": "SILVER",
+          "comment": "Cleansed - Standardized, deduplicated, and validated datasets ready for transformation.",
+          "dynamic_tables": {
+            "clean_aqi_dt": {
+              "name": "CLEAN_AQI_DT",
+              "target_lag": "downstream",
+              "query_template_file": "clean_aqi.tpl",
+              "warehouse": "load_wh",
+              "source_schema": "BRONZE",
+              "source_table": "RAW_AQI",
+              "comment": "Cleansed and validated AQI dataset auto-refreshed from bronze."
+            }
+          }
+        },
+        {
+          "name": "GOLD",
+          "comment": "Curated - Business-ready facts/dimensions and aggregated models optimized for analytics and BI.",
+          "tables": {},
+          "dynamic_tables": {},
+          "functions": {
+            "prominent_index": {
+              "name": "PROMINENT_INDEX",
+              "comment": "Returns dominant pollutant index."
+            },
+            "three_sub_index_criteria": {
+              "name": "THREE_SUB_INDEX_CRITERIA",
+              "comment": "AQI evaluation logic."
+            },
+            "get_int": {
+              "name": "GET_INT",
+              "comment": "Helper conversion utility."
+            }
+          }
+        },
+        {
+          "name": "STREAMLIT",
+          "comment": "Serving - Presentation layer optimized for dashboards, apps, and interactive workloads."
+        }
+      ]
+    }
+  }
+}

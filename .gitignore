@@ -90,3 +90,6 @@ aws/*
 # Open ssl keys
 snowflake_key.p8
 snowflake_key.pub
+
+# Data Files
+northbridge_part*.json
