@@ -24,17 +24,17 @@ variable "project_code" {
 # Snowflake Provider Variables
 # ============================================================================
 
-variable "snowflake_organization_name" {
-  description = "Snowflake organization name"
-  type        = string
-  default     = ""
-}
+# variable "snowflake_organization_name" {
+#   description = "Snowflake organization name"
+#   type        = string
+#   default     = ""
+# }
 
-variable "snowflake_account_name" {
-  description = "Snowflake account name"
-  type        = string
-  default     = ""
-}
+# variable "snowflake_account_name" {
+#   description = "Snowflake account name"
+#   type        = string
+#   default     = ""
+# }
 
 variable "snowflake_user" {
   description = "Snowflake user for Terraform operations"
