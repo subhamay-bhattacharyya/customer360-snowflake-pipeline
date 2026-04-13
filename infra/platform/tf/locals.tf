@@ -12,10 +12,10 @@ locals {
   kms_key_alias     = local.kms_key_alias_raw != null ? (startswith(local.kms_key_alias_raw, "alias/") ? local.kms_key_alias_raw : "alias/${local.kms_key_alias_raw}") : null
 }
 
-data "aws_kms_key" "kms" {
-  count  = local.kms_key_alias != null ? 1 : 0
-  key_id = local.kms_key_alias
-}
+# data "aws_kms_key" "kms" {
+#   count  = local.kms_key_alias != null ? 1 : 0
+#   key_id = local.kms_key_alias
+# }
 
 locals {
   # current_region = data.aws_region.current.id
@@ -69,7 +69,7 @@ locals {
       bucket_name    = "${var.project_code}-${local.aws_config.s3.bucket_name}-${var.environment}-${local.aws_config.region}"
     })
   }
-}
+}   //// End of locals
   # IAM Role Configuration
   # iam_role_config = {
   #   name               = "${var.project_code}-${local.aws_config.iam.role_name}-${var.environment}"
