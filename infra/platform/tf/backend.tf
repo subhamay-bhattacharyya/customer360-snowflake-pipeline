@@ -6,10 +6,10 @@
 terraform {
   cloud {
 
-    organization = "subhamay-bhattacharyya-projects"
+    organization = "subhamay-aws-projects"
 
     workspaces {
-      name = "aws-snowflake-e2e-project"
+      name = "customer360-snowflake-pipeline"
     }
   }
 }
