@@ -6,10 +6,10 @@
 variable "environment" {
   description = "Environment name (devl, test, prod)"
   type        = string
-  default     = "devl"
+  default     = "ci"
 
   validation {
-    condition     = contains(["devl", "test", "prod"], var.environment)
+    condition     = contains(["ci","devl", "test", "prod"], var.environment)
     error_message = "Environment must be devl, test, or prod."
   }
 }
@@ -17,7 +17,7 @@ variable "environment" {
 variable "project_code" {
   description = "Project code prefix for resource naming (e.g., snw-lkh)"
   type        = string
-  default     = "snw"
+  default     = "cust360sf"
 }
 
 # ============================================================================
