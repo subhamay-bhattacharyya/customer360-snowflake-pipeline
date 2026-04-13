@@ -19,4 +19,4 @@ snowflake_config_path = "../../../input-jsons/snowflake/test/config.json"
 # Project Configuration
 # AWS(AWS) - Snowflake (SF) - End to End (E2E)
 # ----------------------------------------------------------------------------
-project_code = "cust360"
+project_code = "cust360sf"
