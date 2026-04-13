@@ -9,7 +9,7 @@ variable "environment" {
   default     = "ci"
 
   validation {
-    condition     = contains(["ci","devl", "test", "prod"], var.environment)
+    condition     = contains(["ci", "devl", "test", "prod"], var.environment)
     error_message = "Environment must be devl, test, or prod."
   }
 }
