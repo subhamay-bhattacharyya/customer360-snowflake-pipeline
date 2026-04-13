@@ -85,24 +85,24 @@ variable "aws_config_path" {
   default     = "../../../input-jsons/aws/config.json"
 }
 
-# variable "snowflake_config_path" {
-#   description = "Path to Snowflake config JSON file (relative to module)"
-#   type        = string
-#   default     = "../../../input-jsons/snowflake/config.json"
-# }
+variable "snowflake_config_path" {
+  description = "Path to Snowflake config JSON file (relative to module)"
+  type        = string
+  default     = "../../../input-jsons/snowflake/config.json"
+}
 
 # ============================================================================
 # Feature Flags
 # ============================================================================
 
-# variable "enable_snowpipe_creation" {
-#   description = "Enable Snowpipe creation. Set to false on first apply, then true on second apply after trust policy is updated."
-#   type        = bool
-#   default     = true
-# }
+variable "enable_snowpipe_creation" {
+  description = "Enable Snowpipe creation. Set to false on first apply, then true on second apply after trust policy is updated."
+  type        = bool
+  default     = true
+}
 
-# variable "enable_trust_policy_update" {
-#   description = "Enable IAM trust policy update with Snowflake credentials. Set to true only once after storage integration is created."
-#   type        = bool
-#   default     = false
-# }
+variable "enable_trust_policy_update" {
+  description = "Enable IAM trust policy update with Snowflake credentials. Set to true only once after storage integration is created."
+  type        = bool
+  default     = false
+}
