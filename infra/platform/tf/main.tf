@@ -56,7 +56,7 @@
 # • 1.1 S3 Bucket for Snowflake external stage
 # ----------------------------------------------------------------------------
 module "s3" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-s3-bucket/modules/bucket?ref=main"
+  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-s3/modules/bucket?ref=main"
 
   s3_config = local.s3_config
 }
@@ -64,13 +64,13 @@ module "s3" {
 # ----------------------------------------------------------------------------
 # • 1.2 IAM Role for Snowflake storage integration (initial with placeholder trust)
 # ----------------------------------------------------------------------------
-module "iam_role" {
-  source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-iam/modules/role?ref=main"
+# module "iam_role" {
+#   source = "github.com/subhamay-bhattacharyya-tf/terraform-aws-iam/modules/role?ref=main"
 
-  iam_role = local.iam_role_config
+#   iam_role = local.iam_role_config
 
-  depends_on = [module.s3]
-}
+#   depends_on = [module.s3]
+# }
 
 # ============================================================================
 # PHASE 2: Snowflake Resources
