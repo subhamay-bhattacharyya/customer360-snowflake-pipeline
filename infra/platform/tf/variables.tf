@@ -82,13 +82,13 @@ variable "snowflake_warehouse" {
 variable "aws_config_path" {
   description = "Path to AWS config JSON file (relative to module)"
   type        = string
-  default     = "../../../input-jsons/aws/config.json"
+  default     = "../../../input-jsons/aws/devl/config.json"
 }
 
 variable "snowflake_config_path" {
   description = "Path to Snowflake config JSON file (relative to module)"
   type        = string
-  default     = "../../../input-jsons/snowflake/config.json"
+  default     = "../../../input-jsons/snowflake/devl/config.json"
 }
 
 # ============================================================================
