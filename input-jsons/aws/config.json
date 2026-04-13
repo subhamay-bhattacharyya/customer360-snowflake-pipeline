@@ -6,7 +6,7 @@
       "bucket_keys": [
         "raw-data/json"
       ],
-      "versioning": true,
+      "versioning": false,
       "kms_key_alias": "SB-KMS",
       "force_destroy": false,
       "lifecycle_rules": [
