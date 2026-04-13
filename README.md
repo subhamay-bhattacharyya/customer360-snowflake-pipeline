@@ -19,7 +19,7 @@ Dynamic Tables provide declarative data transformation pipelines with automatic 
 
 | Parameter    | Options                                           | Description                                                       |
 | ------------ | ------------------------------------------------- | ----------------------------------------------------------------- |
-| TARGET_LAG   | Time interval (e.g., '60 minutes') or 'DOWNSTREAM' | Maximum staleness allowed for the dynamic table data              |
+| TARGET_LAG   | Time interval (e.g., '60 minutes') or 'DOWNSTREAM'| Maximum staleness allowed for the dynamic table data              |
 | REFRESH_MODE | AUTO, FULL, INCREMENTAL                           | How the table refreshes (AUTO tries INCREMENTAL first, then FULL) |
 | INITIALIZE   | ON_CREATE, ON_SCHEDULE                            | When to populate the table initially                              |
 | WAREHOUSE    | Warehouse name                                    | Required compute resource for refresh operations                  |
@@ -230,7 +230,7 @@ This tutorial implements three dynamic tables demonstrating different configurat
 
 ## Repository Structure
 
-```
+```text
 .
 ├── infra/snowflake/tf/           # Terraform configurations
 │   ├── main.tf                   # Module orchestration
