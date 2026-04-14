@@ -17,6 +17,23 @@ data "aws_kms_key" "kms" {
 }
 
 locals {
+  # ============================================================================
+  # Default tags (applied to every AWS resource via provider default_tags)
+  # ============================================================================
+  default_tags = {
+    Project            = var.project_code
+    Environment        = var.environment
+    ManagedBy          = "Terraform"
+    Repository         = "customer360-snowflake-pipeline"
+    Component          = "platform"
+    Owner              = "data-platform"
+    CostCenter         = var.cost_center
+    DataClassification = var.data_classification
+    GitRef             = var.git_ref
+    GitCommitSHA       = var.git_commit_sha
+    LastModified       = formatdate("YYYY-MM-DD", timestamp())
+  }
+
   # Parse config from JSON files (relative to module path)
   aws_config_file       = jsondecode(file("${path.module}/${var.aws_config_path}"))
   snowflake_config_file = jsondecode(file("${path.module}/${var.snowflake_config_path}"))

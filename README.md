@@ -201,32 +201,78 @@ Copy the output of Step 3 — you will need it in the next step.
 
 ### 2. Create Snowflake Service User and Roles
 
-#### 2a. Create service roles and the GitHub Actions service user
+#### 2a. Create provisioner roles and the GitHub Actions service user
 
-Run as `SECURITYADMIN` / `ACCOUNTADMIN`. Replace `YOUR_PUBLIC_KEY_HERE` with the output from Step 1.3 above.
+Each Terraform module uses a dedicated, least-privilege role so that no single role has broader permissions than its scope of work. The role names below are the defaults from `infra/platform/tf/variables.tf` and can be overridden per environment via `terraform.tfvars`.
+
+| Role | Scope | Used by Terraform module |
+| --- | --- | --- |
+| `DB_PROVISIONER` | Create databases and schemas | `module.database_schemas` |
+| `WAREHOUSE_PROVISIONER` | Create and manage warehouses | `module.warehouse` |
+| `DATA_OBJECT_PROVISIONER` | Create tables, file formats, and dynamic tables | `module.table`, `module.file_formats`, `module.dynamic_table` |
+| `INGEST_OBJECT_PROVISIONER` | Create storage integrations, stages, and pipes | `module.storage_integrations`, `module.stage`, `module.pipe` |
+
+Run the SQL below as `SECURITYADMIN` / `ACCOUNTADMIN`. Replace `YOUR_PUBLIC_KEY_HERE` with the output from Step 1.3.
 
 ```sql
 -- ============================================================================
--- GitHub Actions Service User + Core Automation Roles
+-- GitHub Actions Service User + Least-Privilege Provisioner Roles
 -- ============================================================================
 
 USE ROLE SECURITYADMIN;
 
--- Create roles
-CREATE ROLE IF NOT EXISTS PLATFORM_DB_OWNER;
-CREATE ROLE IF NOT EXISTS DATA_OBJECT_ADMIN;
-CREATE ROLE IF NOT EXISTS INGEST_ADMIN;
-CREATE ROLE IF NOT EXISTS WAREHOUSE_ADMIN;
+-- ----------------------------------------------------------------------------
+-- 1) Create provisioner roles
+-- ----------------------------------------------------------------------------
+CREATE ROLE IF NOT EXISTS DB_PROVISIONER
+  COMMENT = 'Terraform: creates databases and schemas';
 
--- Grant account-level privileges
+CREATE ROLE IF NOT EXISTS WAREHOUSE_PROVISIONER
+  COMMENT = 'Terraform: creates and manages warehouses';
+
+CREATE ROLE IF NOT EXISTS DATA_OBJECT_PROVISIONER
+  COMMENT = 'Terraform: creates tables, file formats, and dynamic tables';
+
+CREATE ROLE IF NOT EXISTS INGEST_OBJECT_PROVISIONER
+  COMMENT = 'Terraform: creates storage integrations, stages, and pipes';
+
+-- Role hierarchy — all provisioners report to SYSADMIN for governance
+GRANT ROLE DB_PROVISIONER            TO ROLE SYSADMIN;
+GRANT ROLE WAREHOUSE_PROVISIONER     TO ROLE SYSADMIN;
+GRANT ROLE DATA_OBJECT_PROVISIONER   TO ROLE SYSADMIN;
+GRANT ROLE INGEST_OBJECT_PROVISIONER TO ROLE SYSADMIN;
+
+-- ----------------------------------------------------------------------------
+-- 2) Grant account-level privileges (least privilege — only what each role needs)
+-- ----------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
-GRANT CREATE DATABASE  ON ACCOUNT TO ROLE PLATFORM_DB_OWNER;
-GRANT CREATE WAREHOUSE ON ACCOUNT TO ROLE WAREHOUSE_ADMIN;
-GRANT MONITOR USAGE    ON ACCOUNT TO ROLE WAREHOUSE_ADMIN;
-GRANT USAGE ON WAREHOUSE UTIL_WH  TO ROLE WAREHOUSE_ADMIN;
-GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE INGEST_ADMIN;
 
--- Create GitHub Actions service user (keypair auth only)
+-- DB_PROVISIONER — only allowed to create databases
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE DB_PROVISIONER;
+
+-- WAREHOUSE_PROVISIONER — only allowed to create/manage warehouses
+GRANT CREATE WAREHOUSE ON ACCOUNT TO ROLE WAREHOUSE_PROVISIONER;
+GRANT MONITOR USAGE    ON ACCOUNT TO ROLE WAREHOUSE_PROVISIONER;
+
+-- INGEST_OBJECT_PROVISIONER — only allowed to create storage integrations
+-- (stages/pipes are schema-level, granted post-database in Step 2c)
+GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE INGEST_OBJECT_PROVISIONER;
+
+-- DATA_OBJECT_PROVISIONER — intentionally receives NO account-level privileges.
+-- All its privileges are schema-scoped and granted in Step 2c after the
+-- database/schemas are created by DB_PROVISIONER via Terraform.
+
+-- All roles need a warehouse to run queries — the tiny UTIL_WH is fine here
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE DB_PROVISIONER;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE WAREHOUSE_PROVISIONER;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE INGEST_OBJECT_PROVISIONER;
+
+-- ----------------------------------------------------------------------------
+-- 3) Create the GitHub Actions service user (keypair auth only, no password)
+-- ----------------------------------------------------------------------------
+USE ROLE SECURITYADMIN;
+
 CREATE USER IF NOT EXISTS GITHUB_ACTIONS_USER
   LOGIN_NAME           = 'GITHUB_ACTIONS_USER'
   DISPLAY_NAME         = 'GitHub Actions Service User'
@@ -234,17 +280,26 @@ CREATE USER IF NOT EXISTS GITHUB_ACTIONS_USER
   DEFAULT_WAREHOUSE    = NULL
   MUST_CHANGE_PASSWORD = FALSE
   DISABLED             = FALSE
+  COMMENT              = 'Service account for Terraform deployments via GitHub Actions'
   RSA_PUBLIC_KEY       = 'YOUR_PUBLIC_KEY_HERE';
 
--- Grant all automation roles to the service user
-GRANT ROLE PLATFORM_DB_OWNER TO USER GITHUB_ACTIONS_USER;
-GRANT ROLE DATA_OBJECT_ADMIN  TO USER GITHUB_ACTIONS_USER;
-GRANT ROLE INGEST_ADMIN       TO USER GITHUB_ACTIONS_USER;
-GRANT ROLE WAREHOUSE_ADMIN    TO USER GITHUB_ACTIONS_USER;
+-- ----------------------------------------------------------------------------
+-- 4) Grant provisioner roles to the service user
+-- ----------------------------------------------------------------------------
+GRANT ROLE DB_PROVISIONER            TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE WAREHOUSE_PROVISIONER     TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE DATA_OBJECT_PROVISIONER   TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE INGEST_OBJECT_PROVISIONER TO USER GITHUB_ACTIONS_USER;
 
--- Verify
+-- ----------------------------------------------------------------------------
+-- 5) Verify
+-- ----------------------------------------------------------------------------
 SHOW USERS LIKE 'GITHUB_ACTIONS_USER';
 SHOW GRANTS TO USER GITHUB_ACTIONS_USER;
+SHOW GRANTS TO ROLE DB_PROVISIONER;
+SHOW GRANTS TO ROLE WAREHOUSE_PROVISIONER;
+SHOW GRANTS TO ROLE DATA_OBJECT_PROVISIONER;
+SHOW GRANTS TO ROLE INGEST_OBJECT_PROVISIONER;
 ```
 
 #### 2b. Create the analyst read-only role
@@ -284,23 +339,38 @@ GRANT ROLE NORTHBRIDGE_ANALYST TO USER <ANALYST_USERNAME>;
 
 #### 2c. Post-database grants (run after `terraform apply` Phase 2)
 
-After Terraform creates the database and schemas, run these grants to give the automation roles the schema-level privileges they need:
+After Terraform Phase 2 creates the database and schemas, run these grants as `ACCOUNTADMIN` to give the provisioner roles the schema-scoped privileges they need to build downstream objects:
 
 ```sql
--- DATA_OBJECT_ADMIN — table and file format creation
-GRANT USAGE          ON DATABASE NORTHBRIDGE_DATABASE                      TO ROLE DATA_OBJECT_ADMIN;
-GRANT USAGE          ON SCHEMA   NORTHBRIDGE_DATABASE.BRONZE               TO ROLE DATA_OBJECT_ADMIN;
-GRANT USAGE          ON SCHEMA   NORTHBRIDGE_DATABASE.SILVER               TO ROLE DATA_OBJECT_ADMIN;
-GRANT USAGE          ON SCHEMA   NORTHBRIDGE_DATABASE.GOLD                 TO ROLE DATA_OBJECT_ADMIN;
-GRANT CREATE FILE FORMAT ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE             TO ROLE DATA_OBJECT_ADMIN;
-GRANT CREATE TABLE       ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE             TO ROLE DATA_OBJECT_ADMIN;
-GRANT CREATE DYNAMIC TABLE ON SCHEMA NORTHBRIDGE_DATABASE.SILVER           TO ROLE DATA_OBJECT_ADMIN;
+USE ROLE ACCOUNTADMIN;
 
--- INGEST_ADMIN — stage and pipe creation
-GRANT USAGE          ON DATABASE NORTHBRIDGE_DATABASE                      TO ROLE INGEST_ADMIN;
-GRANT USAGE          ON SCHEMA   NORTHBRIDGE_DATABASE.BRONZE               TO ROLE INGEST_ADMIN;
-GRANT CREATE STAGE       ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE             TO ROLE INGEST_ADMIN;
-GRANT CREATE PIPE        ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE             TO ROLE INGEST_ADMIN;
+-- ----------------------------------------------------------------------------
+-- DATA_OBJECT_PROVISIONER — table / file format / dynamic table creation
+-- ----------------------------------------------------------------------------
+GRANT USAGE ON DATABASE NORTHBRIDGE_DATABASE                           TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.BRONZE                    TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.SILVER                    TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.GOLD                      TO ROLE DATA_OBJECT_PROVISIONER;
+
+GRANT CREATE FILE FORMAT   ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE       TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE TABLE         ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE       TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE DYNAMIC TABLE ON SCHEMA NORTHBRIDGE_DATABASE.SILVER       TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE TABLE         ON SCHEMA NORTHBRIDGE_DATABASE.GOLD         TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE VIEW          ON SCHEMA NORTHBRIDGE_DATABASE.GOLD         TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE FUNCTION      ON SCHEMA NORTHBRIDGE_DATABASE.GOLD         TO ROLE DATA_OBJECT_PROVISIONER;
+
+-- ----------------------------------------------------------------------------
+-- INGEST_OBJECT_PROVISIONER — stage / pipe creation (integrations already granted in 2a)
+-- ----------------------------------------------------------------------------
+GRANT USAGE ON DATABASE NORTHBRIDGE_DATABASE                           TO ROLE INGEST_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.BRONZE                    TO ROLE INGEST_OBJECT_PROVISIONER;
+
+GRANT CREATE STAGE ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE               TO ROLE INGEST_OBJECT_PROVISIONER;
+GRANT CREATE PIPE  ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE               TO ROLE INGEST_OBJECT_PROVISIONER;
+
+-- INGEST_OBJECT_PROVISIONER also needs SELECT on the target table so COPY INTO works via Snowpipe
+GRANT USAGE  ON FUTURE TABLES IN SCHEMA NORTHBRIDGE_DATABASE.BRONZE    TO ROLE INGEST_OBJECT_PROVISIONER;
+GRANT INSERT ON FUTURE TABLES IN SCHEMA NORTHBRIDGE_DATABASE.BRONZE    TO ROLE INGEST_OBJECT_PROVISIONER;
 ```
 
 To verify the keypair was assigned correctly:
@@ -467,10 +537,10 @@ Upload `app/northbridge_dashboard.py` via the Snowflake console:
 
 | Role | Privilege | Used by |
 | --- | --- | --- |
-| `PLATFORM_DB_OWNER` | `CREATE DATABASE` on account | `module.database_schemas` |
-| `WAREHOUSE_ADMIN` | `CREATE WAREHOUSE` on account | `module.warehouse` |
-| `DATA_OBJECT_ADMIN` | `CREATE TABLE`, `CREATE FILE FORMAT`, `CREATE DYNAMIC TABLE` on schemas | `module.table`, `module.file_formats`, `module.dynamic_table` |
-| `INGEST_ADMIN` | `CREATE INTEGRATION`, `CREATE STAGE`, `CREATE PIPE` | `module.storage_integrations`, `module.stage`, `module.pipe` |
+| `DB_PROVISIONER` | `CREATE DATABASE` on account | `module.database_schemas` |
+| `WAREHOUSE_PROVISIONER` | `CREATE WAREHOUSE`, `MONITOR USAGE` on account | `module.warehouse` |
+| `DATA_OBJECT_PROVISIONER` | `CREATE TABLE`, `CREATE FILE FORMAT`, `CREATE DYNAMIC TABLE`, `CREATE VIEW`, `CREATE FUNCTION` on schemas | `module.table`, `module.file_formats`, `module.dynamic_table` |
+| `INGEST_OBJECT_PROVISIONER` | `CREATE INTEGRATION` on account; `CREATE STAGE`, `CREATE PIPE` on schemas | `module.storage_integrations`, `module.stage`, `module.pipe` |
 | `NORTHBRIDGE_ANALYST` | `SELECT` on GOLD tables/views; `USAGE` on GOLD functions | Dashboard users |
 
 ### Warehouses

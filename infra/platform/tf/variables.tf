@@ -109,3 +109,31 @@ variable "enable_trust_policy_update" {
   type        = bool
   default     = false
 }
+
+# ============================================================================
+# Tagging Metadata (injected from CI; safe defaults for local runs)
+# ============================================================================
+
+variable "git_ref" {
+  description = "Git ref (branch or tag) that produced this apply. Set via TF_VAR_git_ref in CI."
+  type        = string
+  default     = "local"
+}
+
+variable "git_commit_sha" {
+  description = "Short git commit SHA. Set via TF_VAR_git_commit_sha in CI."
+  type        = string
+  default     = "local"
+}
+
+variable "cost_center" {
+  description = "Cost center for billing allocation."
+  type        = string
+  default     = "data-platform"
+}
+
+variable "data_classification" {
+  description = "Data classification tier (public, internal, confidential, restricted)."
+  type        = string
+  default     = "confidential"
+}

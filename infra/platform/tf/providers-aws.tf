@@ -9,10 +9,6 @@ provider "aws" {
   region = local.aws_config.region
 
   default_tags {
-    tags = {
-      Project     = var.project_code
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
+    tags = local.default_tags
   }
 }
