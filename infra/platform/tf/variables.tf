@@ -40,9 +40,10 @@ variable "snowflake_user" {
 }
 
 variable "snowflake_private_key" {
-  description = "RSA private key body for Snowflake JWT auth (PEM content without headers, single line). Extract with: grep -v 'BEGIN\\|END' snowflake_key.p8 | tr -d '\\n'"
+  description = "Unused — private key is passed via SNOWFLAKE_PRIVATE_KEY env var. Kept for backward compatibility."
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "db_provisioner_role" {
