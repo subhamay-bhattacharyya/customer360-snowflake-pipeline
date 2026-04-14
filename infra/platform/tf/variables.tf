@@ -132,8 +132,26 @@ variable "cost_center" {
   default     = "data-platform"
 }
 
+variable "component" {
+  description = "Component name within the project (e.g., platform, ingestion, dashboard)."
+  type        = string
+  default     = "platform"
+}
+
+variable "owner" {
+  description = "Owning team for the resources."
+  type        = string
+  default     = "data-platform"
+}
+
 variable "data_classification" {
   description = "Data classification tier (public, internal, confidential, restricted)."
   type        = string
   default     = "confidential"
 }
+
+variable "repository" {
+  description = "GitHub repository name (owner/repo). Set via TF_VAR_repository in CI."
+  type        = string
+  default     = ""
+}  
