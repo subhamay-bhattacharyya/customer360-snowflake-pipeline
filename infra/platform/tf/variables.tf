@@ -40,7 +40,7 @@ variable "snowflake_user" {
 }
 
 variable "snowflake_private_key" {
-  description = "RSA private key body (no PEM headers, no newlines). Extract with: grep -v 'BEGIN\\|END' snowflake_key.p8 | tr -d '\\n'"
+  description = "Base64-encoded PEM private key file. Generate with: base64 -i snowflake_key.p8 | tr -d '\\n'"
   type        = string
   sensitive   = true
 }
