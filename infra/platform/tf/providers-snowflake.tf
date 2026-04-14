@@ -24,7 +24,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
-  private_key       = base64decode(var.snowflake_private_key)
+  private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -49,7 +49,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
-  private_key       = base64decode(var.snowflake_private_key)
+  private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -73,7 +73,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
-  private_key       = base64decode(var.snowflake_private_key)
+  private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
   role              = var.warehouse_provisioner_role != "" ? var.warehouse_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -95,7 +95,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
-  private_key       = base64decode(var.snowflake_private_key)
+  private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
   role              = var.data_object_provisioner_role != "" ? var.data_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -119,7 +119,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
-  private_key       = base64decode(var.snowflake_private_key)
+  private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
   role              = var.ingest_object_provisioner_role != "" ? var.ingest_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
