@@ -258,52 +258,111 @@ This tutorial implements three dynamic tables demonstrating different configurat
 - Terraform >= 1.0
 - GitHub Repository with Actions enabled
 
-### 1. Configure Snowflake Authentication
+### 1. Generate RSA Key Pair for Snowflake Authentication
 
-Set up key-pair authentication for Terraform:
+Snowflake uses RSA keypair authentication (JWT) instead of username/password. Generate the keys and store them in the `keypair/` directory (gitignored):
 
 ```bash
-# Generate RSA key pair
+mkdir -p keypair && cd keypair
+
+# Step 1 — Generate a 2048-bit RSA private key in PKCS#8 (unencrypted) format
 openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_key.p8 -nocrypt
+
+# Step 2 — Derive the public key
 openssl rsa -in snowflake_key.p8 -pubout -out snowflake_key.pub
 
-# Extract public key for Snowflake
+# Step 3 — Extract the public key body (strip headers and newlines) for Snowflake
 grep -v "BEGIN PUBLIC" snowflake_key.pub | grep -v "END PUBLIC" | tr -d '\n'
 ```
 
-### 2. Create Service Account in Snowflake
+Copy the output of Step 3 — you will need it in the next step.
+
+### 2. Create Service Account in Snowflake and Assign the Public Key
+
+Connect to Snowflake as `ACCOUNTADMIN` and run:
 
 ```sql
-CREATE USER IF NOT EXISTS GITHUB_ACTIONS_USER
-  RSA_PUBLIC_KEY = 'YOUR_PUBLIC_KEY_HERE'
+-- Create the service account user
+CREATE USER IF NOT EXISTS TF_PROVISIONER_USER
+  RSA_PUBLIC_KEY = '<paste the public key body from Step 3>'
   DEFAULT_ROLE = SYSADMIN
   COMMENT = 'Service account for Terraform deployments';
 
-GRANT ROLE SYSADMIN TO USER GITHUB_ACTIONS_USER;
+-- Grant the required provisioner roles
+GRANT ROLE PLATFORM_DB_OWNER     TO USER TF_PROVISIONER_USER;
+GRANT ROLE WAREHOUSE_ADMIN       TO USER TF_PROVISIONER_USER;
+GRANT ROLE DATA_OBJECT_ADMIN     TO USER TF_PROVISIONER_USER;
+GRANT ROLE INGEST_ADMIN          TO USER TF_PROVISIONER_USER;
 ```
 
-### 3. Configure Terraform Variables
+To verify the key was assigned correctly:
 
-Update `infra/snowflake/tf/terraform.tfvars`:
+```sql
+DESC USER TF_PROVISIONER_USER;
+-- Look for RSA_PUBLIC_KEY_FP — it should show a fingerprint like SHA256:...
+```
+
+To rotate the key later, generate a new keypair and run:
+
+```sql
+ALTER USER TF_PROVISIONER_USER SET RSA_PUBLIC_KEY = '<new public key body>';
+```
+
+### 3. Base64-Encode the Private Key
+
+HCP Terraform variables cannot contain raw newlines. Encode the private key as a single-line base64 string:
+
+```bash
+base64 -i keypair/snowflake_key.p8 | tr -d '\n'
+```
+
+Copy the output — you will set this as `snowflake_private_key` in HCP Terraform.
+
+### 4. Configure HCP Terraform Variable Set
+
+In your HCP Terraform workspace, create a **Variable Set** with the following variables. The table below shows the naming convention, category, and sensitivity settings:
+
+| Variable Name                    | Category    | HCL | Sensitive | Description                                          |
+| -------------------------------- | ----------- | --- | --------- | ---------------------------------------------------- |
+| `snowflake_organization_name`    | Terraform   | No  | No        | Snowflake organization name                          |
+| `snowflake_account_name`         | Terraform   | No  | No        | Snowflake account name                               |
+| `snowflake_user`                 | Terraform   | No  | No        | Snowflake service account username                   |
+| `snowflake_private_key`          | Terraform   | No  | Yes       | Base64-encoded RSA private key (from Step 3)         |
+| `db_provisioner_role`            | Terraform   | No  | No        | Role for database/schema ops (e.g. `PLATFORM_DB_OWNER`) |
+| `warehouse_provisioner_role`     | Terraform   | No  | No        | Role for warehouse ops (e.g. `WAREHOUSE_ADMIN`)      |
+| `data_object_provisioner_role`   | Terraform   | No  | No        | Role for table/format ops (e.g. `DATA_OBJECT_ADMIN`) |
+| `ingest_object_provisioner_role` | Terraform   | No  | No        | Role for stage/pipe ops (e.g. `INGEST_ADMIN`)        |
+| `snowflake_warehouse`            | Terraform   | No  | No        | Default warehouse (e.g. `UTIL_WH`)                   |
+| `AWS_ACCESS_KEY_ID`              | Environment | N/A | Yes       | AWS access key for the deployment IAM user           |
+| `AWS_SECRET_ACCESS_KEY`          | Environment | N/A | Yes       | AWS secret key for the deployment IAM user           |
+
+> **Important:** The `snowflake_private_key` variable must have **HCL unchecked** and **Sensitive checked**. Marking it as HCL causes a parse error because the base64 string is not valid HCL syntax.
+
+### 5. Configure Local Terraform Variables
+
+For local development, copy and edit the tfvars file:
+
+```bash
+cd infra/platform/tf
+cp environments/devl/terraform.tfvars terraform.tfvars
+```
+
+Add the Snowflake connection variables (these are gitignored):
 
 ```hcl
 snowflake_organization_name  = "YOUR_ORG"
 snowflake_account_name       = "YOUR_ACCOUNT"
-snowflake_user               = "GITHUB_ACTIONS_USER"
-db_provisioner_role          = "PLATFORM_DB_OWNER"
-warehouse_provisioner_role   = "WAREHOUSE_ADMIN"
-data_object_provisioner_role = "DATA_OBJECT_ADMIN"
-snowflake_warehouse          = "UTIL_WH"
-enable_seed_data             = true
+snowflake_user               = "TF_PROVISIONER_USER"
+snowflake_private_key        = "<base64-encoded private key from Step 3>"
 ```
 
-### 4. Deploy Infrastructure
+### 6. Deploy Infrastructure
 
 ```bash
-cd infra/snowflake/tf
+cd infra/platform/tf
 terraform init
-terraform plan
-terraform apply
+terraform plan -var-file="terraform.tfvars"
+terraform apply -var-file="terraform.tfvars"
 ```
 
 ## HRMS Database Schema
