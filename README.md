@@ -448,20 +448,49 @@ Variables are split between the **HCP Variable Set** and **per-environment `.tfv
 - **HCP Variable Set** — secrets and account-level values that are the **same across all environments** (devl, test, prod). These should not be checked into version control.
 - **Per-environment `.tfvars` files** — non-sensitive, environment-specific values that **vary between environments** (e.g. role names, warehouse names, config paths). These live in `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars`.
 
-#### HCP Variable Set (account-level secrets and constants)
+#### Create the HCP Variable Set
 
-In your HCP Terraform workspace, create a **Variable Set** with the following variables:
+1. In HCP Terraform, go to **Organization Settings** → **Variable sets** → **Create variable set**
+2. Name it `SNOWFLAKE_CREDENTIALS`
+3. Under **Variable set scope**, select **Apply to all projects and workspaces**
+4. Leave **Variable set priority** unchecked (default)
+5. Add the variables listed in the table below
 
-| Variable Name                        | Category    | Sensitive | Description                                                        |
-| ------------------------------------ | ----------- | --------- | ------------------------------------------------------------------ |
-| `SNOWFLAKE_PRIVATE_KEY`              | Environment | Yes       | Full PEM content of the private key file (including BEGIN/END headers) |
-| `TF_VAR_snowflake_organization_name` | Environment | No        | Snowflake organization name (from `SELECT CURRENT_ORGANIZATION_NAME()`) |
-| `TF_VAR_snowflake_account_name`      | Environment | No        | Snowflake account name (from `SELECT CURRENT_ACCOUNT_NAME()`)      |
-| `TF_VAR_snowflake_user`              | Environment | No        | Snowflake service account username                                 |
-| `AWS_ACCESS_KEY_ID`                  | Environment | Yes       | AWS access key for the deployment IAM user                         |
-| `AWS_SECRET_ACCESS_KEY`              | Environment | Yes       | AWS secret key for the deployment IAM user                         |
+#### Variable Set Contents
 
-> **Note on `SNOWFLAKE_PRIVATE_KEY`:** This is an **environment variable** (not a Terraform variable). The Snowflake provider reads it directly from the environment — no `TF_VAR_` prefix needed. Paste the **full PEM content** of `keypair/snowflake_key.p8` including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` headers with all newlines. Do **not** include the trailing `%` character that some terminals display — that is just a shell indicator, not part of the key.
+The final variable set should contain the following variables:
+
+| Key                                  | Value                                            | Category  | Sensitive |
+| ------------------------------------ | ------------------------------------------------ | --------- | --------- |
+| `snowflake_private_key`              | Base64-encoded PEM file content                  | terraform | Yes       |
+| `TF_VAR_snowflake_account_name`      | Snowflake account name                           | env       | No        |
+| `TF_VAR_snowflake_organization_name` | Snowflake organization name                      | env       | No        |
+| `TF_VAR_snowflake_user`              | Snowflake service account username               | env       | No        |
+
+#### Detailed variable descriptions
+
+| Variable Name                        | Category  | HCL | Sensitive | How to get the value                                                         |
+| ------------------------------------ | --------- | --- | --------- | ---------------------------------------------------------------------------- |
+| `snowflake_private_key`              | Terraform | No  | Yes       | `base64 -i keypair/snowflake_key.p8 \| tr -d '\n'`                           |
+| `TF_VAR_snowflake_organization_name` | Env       | N/A | No        | `SELECT CURRENT_ORGANIZATION_NAME();` in Snowflake                           |
+| `TF_VAR_snowflake_account_name`      | Env       | N/A | No        | `SELECT CURRENT_ACCOUNT_NAME();` in Snowflake                                |
+| `TF_VAR_snowflake_user`              | Env       | N/A | No        | The Snowflake service account username created in Step 2                    |
+
+> **Important notes:**
+>
+> - For `snowflake_private_key`, set **Category = Terraform**, **HCL = unchecked**, and **Sensitive = checked**. The value is the base64-encoded entire `.p8` file (including PEM headers). The Terraform provider config decodes it with `base64decode()` at runtime.
+> - For the three `TF_VAR_*` variables, set **Category = Environment**. HCP will inject them as OS env vars, and Terraform automatically picks them up as the corresponding `var.*` values.
+> - Do **not** create a separate `SNOWFLAKE_PRIVATE_KEY` environment variable — HCP strips newlines from env vars, breaking the PEM format. The base64-encoded Terraform variable approach works reliably.
+> - When copying the base64 value from your terminal, do **not** include any trailing `%` character that shells display to indicate a missing final newline — it is not part of the value.
+
+#### AWS credentials (separate variable set)
+
+Create a second variable set named `AWS_VARIABLE_SET` (applied to all projects and workspaces) so AWS credentials can be reused by non-Snowflake workspaces:
+
+| Key                     | Value                      | Category | Sensitive |
+| ----------------------- | -------------------------- | -------- | --------- |
+| `AWS_ACCESS_KEY_ID`     | Access key of deployer IAM | env      | No        |
+| `AWS_SECRET_ACCESS_KEY` | Secret key of deployer IAM | env      | Yes       |
 
 #### Per-environment `.tfvars` files (environment-specific values)
 
