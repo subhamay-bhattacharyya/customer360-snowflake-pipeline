@@ -19,8 +19,9 @@
 
 # Default provider - uses db_provisioner_role for database/schema operations
 provider "snowflake" {
-  # organization_name, account_name, and user are read from environment variables:
-  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
+  organization_name = var.snowflake_organization_name
+  account_name      = var.snowflake_account_name
+  user              = var.snowflake_user
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -42,8 +43,9 @@ provider "snowflake" {
 # Alias for db_provisioner (same as default, for explicit module references)
 provider "snowflake" {
   alias             = "db_provisioner"
-  # organization_name, account_name, and user are read from environment variables:
-  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
+  organization_name = var.snowflake_organization_name
+  account_name      = var.snowflake_account_name
+  user              = var.snowflake_user
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -64,8 +66,9 @@ provider "snowflake" {
 
 provider "snowflake" {
   alias             = "warehouse_provisioner"
-  # organization_name, account_name, and user are read from environment variables:
-  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
+  organization_name = var.snowflake_organization_name
+  account_name      = var.snowflake_account_name
+  user              = var.snowflake_user
   role              = var.warehouse_provisioner_role != "" ? var.warehouse_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -84,8 +87,9 @@ provider "snowflake" {
 
 provider "snowflake" {
   alias             = "data_object_provisioner"
-  # organization_name, account_name, and user are read from environment variables:
-  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
+  organization_name = var.snowflake_organization_name
+  account_name      = var.snowflake_account_name
+  user              = var.snowflake_user
   role              = var.data_object_provisioner_role != "" ? var.data_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -106,8 +110,9 @@ provider "snowflake" {
 
 provider "snowflake" {
   alias             = "ingest_object_provisioner"
-  # organization_name, account_name, and user are read from environment variables:
-  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
+  organization_name = var.snowflake_organization_name
+  account_name      = var.snowflake_account_name
+  user              = var.snowflake_user
   role              = var.ingest_object_provisioner_role != "" ? var.ingest_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"

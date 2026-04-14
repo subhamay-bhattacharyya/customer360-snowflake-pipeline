@@ -24,9 +24,20 @@ variable "project_code" {
 # Snowflake Provider Variables
 # ============================================================================
 
-## snowflake_organization_name, snowflake_account_name, and snowflake_user
-## are now read from environment variables:
-## SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
+variable "snowflake_organization_name" {
+  description = "Snowflake organization name (set via TF_VAR_snowflake_organization_name env var)"
+  type        = string
+}
+
+variable "snowflake_account_name" {
+  description = "Snowflake account name (set via TF_VAR_snowflake_account_name env var)"
+  type        = string
+}
+
+variable "snowflake_user" {
+  description = "Snowflake user for Terraform operations (set via TF_VAR_snowflake_user env var)"
+  type        = string
+}
 
 variable "db_provisioner_role" {
   description = "Snowflake role for database provisioning operations"
