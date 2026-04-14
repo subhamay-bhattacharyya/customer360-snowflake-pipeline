@@ -39,6 +39,12 @@ variable "snowflake_user" {
   type        = string
 }
 
+variable "snowflake_private_key" {
+  description = "RSA private key content for Snowflake JWT keypair authentication"
+  type        = string
+  sensitive   = true
+}
+
 variable "db_provisioner_role" {
   description = "Snowflake role for database provisioning operations"
   type        = string
