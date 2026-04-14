@@ -318,7 +318,7 @@ base64 -i keypair/snowflake_key.p8 | tr -d '\n'
 
 Copy the output — you will set this as `snowflake_private_key` in HCP Terraform.
 
-The Terraform provider configuration automatically decodes the base64 string and strips the PEM headers (`-----BEGIN/END PRIVATE KEY-----`) before passing the raw key body to the Snowflake JWT authenticator.
+The Terraform provider configuration automatically decodes the base64 string back to the full PEM content before passing it to the Snowflake JWT authenticator.
 
 ### 4. Configure HCP Terraform Variable Set
 
