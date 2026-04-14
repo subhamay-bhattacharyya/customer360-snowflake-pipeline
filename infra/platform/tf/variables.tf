@@ -39,6 +39,12 @@ variable "snowflake_user" {
   type        = string
 }
 
+variable "snowflake_private_key" {
+  description = "RSA private key body (no PEM headers, no newlines). Extract with: grep -v 'BEGIN\\|END' snowflake_key.p8 | tr -d '\\n'"
+  type        = string
+  sensitive   = true
+}
+
 variable "db_provisioner_role" {
   description = "Snowflake role for database provisioning operations"
   type        = string

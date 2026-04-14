@@ -277,35 +277,168 @@ grep -v "BEGIN PUBLIC" snowflake_key.pub | grep -v "END PUBLIC" | tr -d '\n'
 
 Copy the output of Step 3 — you will need it in the next step.
 
-### 2. Create Service Account in Snowflake and Assign the Public Key
+### 2. Create Service Account and Roles in Snowflake
 
-Connect to Snowflake as `ACCOUNTADMIN` and run:
+#### Setting Up Admin Roles
+
+Run this SQL in Snowflake (replace `YOUR_PUBLIC_KEY_HERE` with the output from Step 1):
 
 ```sql
--- Create the service account user
-CREATE USER IF NOT EXISTS TF_PROVISIONER_USER
-  RSA_PUBLIC_KEY = '<paste the public key body from Step 3>'
-  DEFAULT_ROLE = SYSADMIN
-  COMMENT = 'Service account for Terraform deployments';
+-- ============================================================================
+-- Snowflake: GitHub Actions Service User + Core Automation Roles (Hardened)
+--
+-- Creates:
+--   * User: GITHUB_ACTIONS_USER (key-pair auth; default role PUBLIC; no default WH)
+--   * Roles:
+--       - PLATFORM_DB_OWNER   (CREATE DATABASE)
+--       - DATA_OBJECT_ADMIN   (no privileges granted here; typically schema-scoped later)
+--       - INGEST_ADMIN        (no privileges granted here; typically integration/stage/pipe scoped later)
+--       - WAREHOUSE_ADMIN     (CREATE WAREHOUSE)
+--   * Grants all roles to the GitHub Actions user
+--
+-- Run as: SECURITYADMIN (recommended)
+-- Replace:
+--   - RSA_PUBLIC_KEY value below
+-- ============================================================================
 
--- Grant the required provisioner roles
-GRANT ROLE PLATFORM_DB_OWNER     TO USER TF_PROVISIONER_USER;
-GRANT ROLE WAREHOUSE_ADMIN       TO USER TF_PROVISIONER_USER;
-GRANT ROLE DATA_OBJECT_ADMIN     TO USER TF_PROVISIONER_USER;
-GRANT ROLE INGEST_ADMIN          TO USER TF_PROVISIONER_USER;
+USE ROLE SECURITYADMIN;
+
+-- ----------------------------------------------------------------------------
+-- 1) Create Roles
+-- ----------------------------------------------------------------------------
+CREATE ROLE IF NOT EXISTS PLATFORM_DB_OWNER;
+CREATE ROLE IF NOT EXISTS DATA_OBJECT_ADMIN;
+CREATE ROLE IF NOT EXISTS INGEST_ADMIN;
+CREATE ROLE IF NOT EXISTS WAREHOUSE_ADMIN;
+
+-- ----------------------------------------------------------------------------
+-- 2) Grant Account-level Privileges (only where applicable)
+-- ----------------------------------------------------------------------------
+
+USE ROLE ACCOUNTADMIN;
+-- PLATFORM_DB_OWNER: create databases (account-level)
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE PLATFORM_DB_OWNER;
+
+
+-- WAREHOUSE_ADMIN: create warehouses (account-level)
+GRANT CREATE WAREHOUSE ON ACCOUNT TO ROLE WAREHOUSE_ADMIN;
+
+-- Optional but recommended: allow visibility into account/warehouse usage
+GRANT MONITOR USAGE ON ACCOUNT TO ROLE WAREHOUSE_ADMIN;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE WAREHOUSE_ADMIN;
+GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE INGEST_ADMIN;
+
+-- NOTE:
+-- DATA_OBJECT_ADMIN and INGEST_ADMIN are intentionally left with NO privileges here.
+-- They should be granted schema/database/integration-specific privileges later in Terraform,
+-- once the target database/schema/integrations exist (JSON-driven).
+
+-- ----------------------------------------------------------------------------
+-- 3) Create GitHub Actions Service User (Key-Pair Auth Only)
+-- ----------------------------------------------------------------------------
+CREATE USER IF NOT EXISTS GITHUB_ACTIONS_USER
+  LOGIN_NAME           = 'GITHUB_ACTIONS_USER'
+  DISPLAY_NAME         = 'GitHub Actions Service User'
+  DEFAULT_ROLE         = PUBLIC
+  DEFAULT_WAREHOUSE    = NULL
+  MUST_CHANGE_PASSWORD = FALSE
+  DISABLED             = FALSE
+  RSA_PUBLIC_KEY       = 'YOUR_PUBLIC_KEY_HERE';
+
+-- ----------------------------------------------------------------------------
+-- 4) Grant Roles to GitHub Actions User (NOT default)
+-- ----------------------------------------------------------------------------
+GRANT ROLE PLATFORM_DB_OWNER TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE DATA_OBJECT_ADMIN TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE INGEST_ADMIN      TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE WAREHOUSE_ADMIN   TO USER GITHUB_ACTIONS_USER;
+
+-- ----------------------------------------------------------------------------
+-- 5) Verification
+-- ----------------------------------------------------------------------------
+SHOW USERS LIKE 'GITHUB_ACTIONS_USER';
+SHOW GRANTS TO USER GITHUB_ACTIONS_USER;
+SHOW GRANTS TO ROLE PLATFORM_DB_OWNER;
+SHOW GRANTS TO ROLE DATA_OBJECT_ADMIN;
+SHOW GRANTS TO ROLE INGEST_ADMIN;
+SHOW GRANTS TO ROLE WAREHOUSE_ADMIN;
 ```
+
+#### Setting Up Analyst Role (Read-Only)
+
+Run the following SQL as `ACCOUNTADMIN` to create a read-only analyst role:
+
+```sql
+-- ============================================================================
+-- Create Analyst Role for Read-Only Access
+-- ============================================================================
+
+-- 1. Create the analyst role
+CREATE ROLE IF NOT EXISTS ANALYST
+  COMMENT = 'Read-only access to query tables and views';
+
+-- 2. Set up role hierarchy (ANALYST reports to SYSADMIN)
+GRANT ROLE ANALYST TO ROLE SYSADMIN;
+
+-- 3. Grant warehouse usage for query execution
+GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE ANALYST;
+
+-- 4. Grant database and schema usage (read-only)
+GRANT USAGE ON DATABASE <DATABASE_NAME> TO ROLE ANALYST;
+GRANT USAGE ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE ANALYST;
+
+-- 5. Grant SELECT on all existing tables in schema
+GRANT SELECT ON ALL TABLES IN SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE ANALYST;
+
+-- 6. Grant SELECT on all existing views in schema
+GRANT SELECT ON ALL VIEWS IN SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE ANALYST;
+
+-- 7. Grant SELECT on future tables (auto-grant for new tables)
+GRANT SELECT ON FUTURE TABLES IN SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE ANALYST;
+
+-- 8. Grant SELECT on future views (auto-grant for new views)
+GRANT SELECT ON FUTURE VIEWS IN SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE ANALYST;
+
+-- 9. Grant role to analyst users
+GRANT ROLE ANALYST TO USER <ANALYST_USERNAME>;
+```
+
+#### Post-Database Creation Grants
+
+After databases and schemas are created by `PLATFORM_DB_ADMIN`, run these grants:
+
+```sql
+-- Grant schema privileges to DATA_OBJECT_ADMIN
+GRANT USAGE ON DATABASE <DATABASE_NAME> TO ROLE DATA_OBJECT_ADMIN;
+GRANT USAGE ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE DATA_OBJECT_ADMIN;
+GRANT CREATE FILE FORMAT ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE DATA_OBJECT_ADMIN;
+GRANT CREATE TABLE ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE DATA_OBJECT_ADMIN;
+
+-- Grant schema privileges to INGEST_ADMIN
+GRANT USAGE ON DATABASE <DATABASE_NAME> TO ROLE INGEST_ADMIN;
+GRANT USAGE ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE INGEST_ADMIN;
+GRANT CREATE STAGE ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE INGEST_ADMIN;
+GRANT CREATE PIPE ON SCHEMA <DATABASE_NAME>.<SCHEMA_NAME> TO ROLE INGEST_ADMIN;
+```
+
+**Security Notes:**
+- Use `SYSADMIN` role for all DDL and grant operations
+- Grant `MANAGE GRANTS` privilege to SYSADMIN for permission management
+- Key-pair authentication is more secure than passwords
+- Service accounts provide better audit trails
+- Never commit private keys to the repository
 
 To verify the key was assigned correctly:
 
 ```sql
-DESC USER TF_PROVISIONER_USER;
+DESC USER GITHUB_ACTIONS_USER;
 -- Look for RSA_PUBLIC_KEY_FP — it should show a fingerprint like SHA256:...
 ```
 
 To rotate the key later, generate a new keypair and run:
 
 ```sql
-ALTER USER TF_PROVISIONER_USER SET RSA_PUBLIC_KEY = '<new public key body>';
+ALTER USER GITHUB_ACTIONS_USER SET RSA_PUBLIC_KEY = '<new public key body>';
 ```
 
 ### 3. Configure HCP Terraform Variable Set

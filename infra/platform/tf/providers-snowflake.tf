@@ -2,13 +2,15 @@
 # ============================================================================
 # Snowflake Provider Configuration
 # ============================================================================
-# Authentication: Uses JWT with private key via SNOWFLAKE_PRIVATE_KEY env var
-# 
-# Required environment variables (set in CI/CD workflow or HCP workspace):
-#   - SNOWFLAKE_PRIVATE_KEY (the private key content)
-#   - SNOWFLAKE_ORGANIZATION_NAME
-#   - SNOWFLAKE_ACCOUNT_NAME
-#   - SNOWFLAKE_USER
+# Authentication: Uses JWT with RSA private key passed as a Terraform variable.
+# The key body (no PEM headers, no newlines) is stored in HCP Terraform as a
+# sensitive Terraform variable. PEM format is reconstructed at plan time.
+#
+# Required variables (set in HCP Terraform Variable Set):
+#   - snowflake_private_key          (Terraform variable, sensitive)
+#   - TF_VAR_snowflake_organization_name (env var)
+#   - TF_VAR_snowflake_account_name      (env var)
+#   - TF_VAR_snowflake_user              (env var)
 #
 # Provider Aliases:
 #   - default (db_provisioner_role)    : Database/Schema creation
@@ -22,6 +24,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
+  private_key       = "-----BEGIN PRIVATE KEY-----\n${join("\n", regexall(".{1,64}", var.snowflake_private_key))}\n-----END PRIVATE KEY-----"
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -46,6 +49,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
+  private_key       = "-----BEGIN PRIVATE KEY-----\n${join("\n", regexall(".{1,64}", var.snowflake_private_key))}\n-----END PRIVATE KEY-----"
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -69,6 +73,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
+  private_key       = "-----BEGIN PRIVATE KEY-----\n${join("\n", regexall(".{1,64}", var.snowflake_private_key))}\n-----END PRIVATE KEY-----"
   role              = var.warehouse_provisioner_role != "" ? var.warehouse_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -90,6 +95,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
+  private_key       = "-----BEGIN PRIVATE KEY-----\n${join("\n", regexall(".{1,64}", var.snowflake_private_key))}\n-----END PRIVATE KEY-----"
   role              = var.data_object_provisioner_role != "" ? var.data_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -113,6 +119,7 @@ provider "snowflake" {
   organization_name = var.snowflake_organization_name
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
+  private_key       = "-----BEGIN PRIVATE KEY-----\n${join("\n", regexall(".{1,64}", var.snowflake_private_key))}\n-----END PRIVATE KEY-----"
   role              = var.ingest_object_provisioner_role != "" ? var.ingest_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
