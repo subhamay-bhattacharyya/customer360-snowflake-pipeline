@@ -310,7 +310,7 @@ ALTER USER TF_PROVISIONER_USER SET RSA_PUBLIC_KEY = '<new public key body>';
 
 ### 3. Base64-Encode the Private Key
 
-HCP Terraform variables cannot contain raw newlines. Encode the private key as a single-line base64 string:
+HCP Terraform variables cannot contain raw newlines. Encode the **entire** `.p8` file (including PEM headers) as a single-line base64 string:
 
 ```bash
 base64 -i keypair/snowflake_key.p8 | tr -d '\n'
@@ -318,36 +318,71 @@ base64 -i keypair/snowflake_key.p8 | tr -d '\n'
 
 Copy the output — you will set this as `snowflake_private_key` in HCP Terraform.
 
+The Terraform provider configuration automatically decodes the base64 string and strips the PEM headers (`-----BEGIN/END PRIVATE KEY-----`) before passing the raw key body to the Snowflake JWT authenticator.
+
 ### 4. Configure HCP Terraform Variable Set
 
-In your HCP Terraform workspace, create a **Variable Set** with the following variables. The table below shows the naming convention, category, and sensitivity settings:
+Variables are split between the **HCP Variable Set** and **per-environment `.tfvars` files** based on scope:
 
-| Variable Name                    | Category    | HCL | Sensitive | Description                                          |
-| -------------------------------- | ----------- | --- | --------- | ---------------------------------------------------- |
-| `snowflake_organization_name`    | Terraform   | No  | No        | Snowflake organization name                          |
-| `snowflake_account_name`         | Terraform   | No  | No        | Snowflake account name                               |
-| `snowflake_user`                 | Terraform   | No  | No        | Snowflake service account username                   |
-| `snowflake_private_key`          | Terraform   | No  | Yes       | Base64-encoded RSA private key (from Step 3)         |
-| `db_provisioner_role`            | Terraform   | No  | No        | Role for database/schema ops (e.g. `PLATFORM_DB_OWNER`) |
-| `warehouse_provisioner_role`     | Terraform   | No  | No        | Role for warehouse ops (e.g. `WAREHOUSE_ADMIN`)      |
-| `data_object_provisioner_role`   | Terraform   | No  | No        | Role for table/format ops (e.g. `DATA_OBJECT_ADMIN`) |
-| `ingest_object_provisioner_role` | Terraform   | No  | No        | Role for stage/pipe ops (e.g. `INGEST_ADMIN`)        |
-| `snowflake_warehouse`            | Terraform   | No  | No        | Default warehouse (e.g. `UTIL_WH`)                   |
-| `AWS_ACCESS_KEY_ID`              | Environment | N/A | Yes       | AWS access key for the deployment IAM user           |
-| `AWS_SECRET_ACCESS_KEY`          | Environment | N/A | Yes       | AWS secret key for the deployment IAM user           |
+- **HCP Variable Set** — secrets and account-level values that are the **same across all environments** (devl, test, prod). These should not be checked into version control.
+- **Per-environment `.tfvars` files** — non-sensitive, environment-specific values that **vary between environments** (e.g. role names, warehouse names, config paths). These live in `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars`.
 
-> **Important:** The `snowflake_private_key` variable must have **HCL unchecked** and **Sensitive checked**. Marking it as HCL causes a parse error because the base64 string is not valid HCL syntax.
+#### HCP Variable Set (account-level secrets and constants)
+
+In your HCP Terraform workspace, create a **Variable Set** with the following variables:
+
+| Variable Name                  | Category    | HCL | Sensitive | Description                                  |
+| ------------------------------ | ----------- | --- | --------- | -------------------------------------------- |
+| `snowflake_organization_name`  | Terraform   | No  | No        | Snowflake organization name                  |
+| `snowflake_account_name`       | Terraform   | No  | No        | Snowflake account name                       |
+| `snowflake_user`               | Terraform   | No  | No        | Snowflake service account username           |
+| `snowflake_private_key`        | Terraform   | No  | Yes       | Base64-encoded RSA private key (from Step 3) |
+| `AWS_ACCESS_KEY_ID`            | Environment | N/A | Yes       | AWS access key for the deployment IAM user   |
+| `AWS_SECRET_ACCESS_KEY`        | Environment | N/A | Yes       | AWS secret key for the deployment IAM user   |
+
+> **Important — HCL must be unchecked for all Terraform category variables.**
+>
+> When you mark an HCP Terraform variable as **HCL**, HCP writes the raw value directly into the generated `.tfvars` file *without quotes*. For example, the base64-encoded private key would appear as:
+>
+> ```hcl
+> snowflake_private_key = LS0tLS1CRUdJTi...   # unquoted — Terraform error!
+> ```
+>
+> Terraform then tries to parse the bare value as an HCL expression, which fails with `Variables may not be used here`. With **HCL unchecked**, HCP correctly wraps the value in double quotes:
+>
+> ```hcl
+> snowflake_private_key = "LS0tLS1CRUdJTi..."  # quoted — works
+> ```
+>
+> This applies to **all** string variables in the table above, not just the private key. Always leave **HCL unchecked** for plain string values. Only check HCL when the value is a complex type (list, map, or object).
+>
+> Additionally, `snowflake_private_key` must have **Sensitive checked** to prevent the key from appearing in plan output and state logs.
+
+#### Per-environment `.tfvars` files (environment-specific values)
+
+These variables live in `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars` and are checked into version control. They can differ across environments:
+
+| Variable Name                    | Description                                          | Example (devl)       |
+| -------------------------------- | ---------------------------------------------------- | -------------------- |
+| `db_provisioner_role`            | Role for database/schema ops                         | `PLATFORM_DB_OWNER`  |
+| `warehouse_provisioner_role`     | Role for warehouse ops                               | `WAREHOUSE_ADMIN`    |
+| `data_object_provisioner_role`   | Role for table/file format ops                       | `DATA_OBJECT_ADMIN`  |
+| `ingest_object_provisioner_role` | Role for stage/pipe ops                              | `INGEST_ADMIN`       |
+| `snowflake_warehouse`            | Default warehouse for Terraform ops                  | `UTIL_WH`            |
+| `aws_config_path`               | Path to environment-specific AWS config JSON         | `config/aws/devl/config.json`       |
+| `snowflake_config_path`         | Path to environment-specific Snowflake config JSON   | `config/snowflake/devl/config.json` |
+| `project_code`                   | Project code prefix for resource naming              | `cust360sf`          |
 
 ### 5. Configure Local Terraform Variables
 
-For local development, copy and edit the tfvars file:
+For local development, copy the environment-specific tfvars and add the connection secrets (the resulting file is gitignored):
 
 ```bash
 cd infra/platform/tf
 cp environments/devl/terraform.tfvars terraform.tfvars
 ```
 
-Add the Snowflake connection variables (these are gitignored):
+Append the Snowflake connection variables that would normally come from the HCP Variable Set:
 
 ```hcl
 snowflake_organization_name  = "YOUR_ORG"
