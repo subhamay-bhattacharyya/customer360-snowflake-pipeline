@@ -51,6 +51,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
 
 ### Features
 
@@ -84,6 +85,7 @@ All notable changes to this project will be documented in this file.
 - Add Snowflake configuration files for dev, prod, and test environments
 - Update Snowflake authentication process with RSA keypair and base64 encoding
 - Enhance README and Terraform configurations with provisioner roles and tagging metadata
+- Add new variables for project configuration and update resource timestamps
 
 ### Miscellaneous Tasks
 
