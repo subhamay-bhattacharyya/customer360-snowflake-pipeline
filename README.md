@@ -308,17 +308,15 @@ To rotate the key later, generate a new keypair and run:
 ALTER USER TF_PROVISIONER_USER SET RSA_PUBLIC_KEY = '<new public key body>';
 ```
 
-### 3. Base64-Encode the Private Key
+### 3. Extract the Private Key Body
 
-HCP Terraform variables cannot contain raw newlines. Encode the **entire** `.p8` file (including PEM headers) as a single-line base64 string:
+HCP Terraform variables cannot contain raw newlines. Extract just the **key body** from the `.p8` file (strip the PEM headers and join into a single line):
 
 ```bash
-base64 -i keypair/snowflake_key.p8 | tr -d '\n'
+grep -v 'BEGIN\|END' keypair/snowflake_key.p8 | tr -d '\n'
 ```
 
-Copy the output — you will set this as `snowflake_private_key` in HCP Terraform.
-
-The Terraform provider configuration automatically decodes the base64 string back to the full PEM content before passing it to the Snowflake JWT authenticator.
+Copy the output — you will set this as `snowflake_private_key` in HCP Terraform. The value is the raw base64-encoded key material without the `-----BEGIN/END PRIVATE KEY-----` markers or newlines.
 
 ### 4. Configure HCP Terraform Variable Set
 
@@ -336,7 +334,7 @@ In your HCP Terraform workspace, create a **Variable Set** with the following va
 | `snowflake_organization_name`  | Terraform   | No  | No        | Snowflake organization name                  |
 | `snowflake_account_name`       | Terraform   | No  | No        | Snowflake account name                       |
 | `snowflake_user`               | Terraform   | No  | No        | Snowflake service account username           |
-| `snowflake_private_key`        | Terraform   | No  | Yes       | Base64-encoded RSA private key (from Step 3) |
+| `snowflake_private_key`        | Terraform   | No  | Yes       | Private key body without PEM headers (from Step 3) |
 | `AWS_ACCESS_KEY_ID`            | Environment | N/A | Yes       | AWS access key for the deployment IAM user   |
 | `AWS_SECRET_ACCESS_KEY`        | Environment | N/A | Yes       | AWS secret key for the deployment IAM user   |
 
@@ -388,7 +386,7 @@ Append the Snowflake connection variables that would normally come from the HCP 
 snowflake_organization_name  = "YOUR_ORG"
 snowflake_account_name       = "YOUR_ACCOUNT"
 snowflake_user               = "TF_PROVISIONER_USER"
-snowflake_private_key        = "<base64-encoded private key from Step 3>"
+snowflake_private_key        = "<private key body from Step 3>"
 ```
 
 ### 6. Deploy Infrastructure

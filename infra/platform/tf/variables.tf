@@ -40,7 +40,7 @@ variable "snowflake_user" {
 }
 
 variable "snowflake_private_key" {
-  description = "Base64-encoded RSA private key for Snowflake JWT keypair authentication. Encode with: base64 -i snowflake_key.p8 | tr -d '\\n'"
+  description = "RSA private key body for Snowflake JWT auth (PEM content without headers, single line). Extract with: grep -v 'BEGIN\\|END' snowflake_key.p8 | tr -d '\\n'"
   type        = string
   sensitive   = true
 }
