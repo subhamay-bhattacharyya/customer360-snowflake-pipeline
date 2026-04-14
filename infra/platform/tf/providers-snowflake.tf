@@ -25,6 +25,7 @@ provider "snowflake" {
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
   private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
+  authenticator     = "SNOWFLAKE_JWT"
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
 
@@ -49,6 +50,7 @@ provider "snowflake" {
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
   private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
+  authenticator     = "SNOWFLAKE_JWT"
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
 
@@ -72,6 +74,7 @@ provider "snowflake" {
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
   private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
+  authenticator     = "SNOWFLAKE_JWT"
   role              = var.warehouse_provisioner_role != "" ? var.warehouse_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
 
@@ -93,6 +96,7 @@ provider "snowflake" {
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
   private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
+  authenticator     = "SNOWFLAKE_JWT"
   role              = var.data_object_provisioner_role != "" ? var.data_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
 
@@ -116,6 +120,7 @@ provider "snowflake" {
   account_name      = var.snowflake_account_name
   user              = var.snowflake_user
   private_key       = base64decode(replace(var.snowflake_private_key, "/[\\s]+/", ""))
+  authenticator     = "SNOWFLAKE_JWT"
   role              = var.ingest_object_provisioner_role != "" ? var.ingest_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
 
