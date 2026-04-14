@@ -308,17 +308,7 @@ To rotate the key later, generate a new keypair and run:
 ALTER USER TF_PROVISIONER_USER SET RSA_PUBLIC_KEY = '<new public key body>';
 ```
 
-### 3. Extract the Private Key Body
-
-HCP Terraform variables cannot contain raw newlines. Extract just the **key body** from the `.p8` file (strip the PEM headers and join into a single line):
-
-```bash
-grep -v 'BEGIN\|END' keypair/snowflake_key.p8 | tr -d '\n'
-```
-
-Copy the output — you will set this as `snowflake_private_key` in HCP Terraform. The value is the raw base64-encoded key material without the `-----BEGIN/END PRIVATE KEY-----` markers or newlines.
-
-### 4. Configure HCP Terraform Variable Set
+### 3. Configure HCP Terraform Variable Set
 
 Variables are split between the **HCP Variable Set** and **per-environment `.tfvars` files** based on scope:
 
@@ -329,67 +319,51 @@ Variables are split between the **HCP Variable Set** and **per-environment `.tfv
 
 In your HCP Terraform workspace, create a **Variable Set** with the following variables:
 
-| Variable Name                  | Category    | HCL | Sensitive | Description                                  |
-| ------------------------------ | ----------- | --- | --------- | -------------------------------------------- |
-| `snowflake_organization_name`  | Terraform   | No  | No        | Snowflake organization name                  |
-| `snowflake_account_name`       | Terraform   | No  | No        | Snowflake account name                       |
-| `snowflake_user`               | Terraform   | No  | No        | Snowflake service account username           |
-| `snowflake_private_key`        | Terraform   | No  | Yes       | Private key body without PEM headers (from Step 3) |
-| `AWS_ACCESS_KEY_ID`            | Environment | N/A | Yes       | AWS access key for the deployment IAM user   |
-| `AWS_SECRET_ACCESS_KEY`        | Environment | N/A | Yes       | AWS secret key for the deployment IAM user   |
+| Variable Name                        | Category    | Sensitive | Description                                                        |
+| ------------------------------------ | ----------- | --------- | ------------------------------------------------------------------ |
+| `SNOWFLAKE_PRIVATE_KEY`              | Environment | Yes       | Full PEM content of the private key file (including BEGIN/END headers) |
+| `TF_VAR_snowflake_organization_name` | Environment | No        | Snowflake organization name (from `SELECT CURRENT_ORGANIZATION_NAME()`) |
+| `TF_VAR_snowflake_account_name`      | Environment | No        | Snowflake account name (from `SELECT CURRENT_ACCOUNT_NAME()`)      |
+| `TF_VAR_snowflake_user`              | Environment | No        | Snowflake service account username                                 |
+| `AWS_ACCESS_KEY_ID`                  | Environment | Yes       | AWS access key for the deployment IAM user                         |
+| `AWS_SECRET_ACCESS_KEY`              | Environment | Yes       | AWS secret key for the deployment IAM user                         |
 
-> **Important — HCL must be unchecked for all Terraform category variables.**
->
-> When you mark an HCP Terraform variable as **HCL**, HCP writes the raw value directly into the generated `.tfvars` file *without quotes*. For example, the base64-encoded private key would appear as:
->
-> ```hcl
-> snowflake_private_key = LS0tLS1CRUdJTi...   # unquoted — Terraform error!
-> ```
->
-> Terraform then tries to parse the bare value as an HCL expression, which fails with `Variables may not be used here`. With **HCL unchecked**, HCP correctly wraps the value in double quotes:
->
-> ```hcl
-> snowflake_private_key = "LS0tLS1CRUdJTi..."  # quoted — works
-> ```
->
-> This applies to **all** string variables in the table above, not just the private key. Always leave **HCL unchecked** for plain string values. Only check HCL when the value is a complex type (list, map, or object).
->
-> Additionally, `snowflake_private_key` must have **Sensitive checked** to prevent the key from appearing in plan output and state logs.
+> **Note on `SNOWFLAKE_PRIVATE_KEY`:** This is an **environment variable** (not a Terraform variable). The Snowflake provider reads it directly from the environment — no `TF_VAR_` prefix needed. Paste the **full PEM content** of `keypair/snowflake_key.p8` including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` headers with all newlines. Do **not** include the trailing `%` character that some terminals display — that is just a shell indicator, not part of the key.
 
 #### Per-environment `.tfvars` files (environment-specific values)
 
 These variables live in `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars` and are checked into version control. They can differ across environments:
 
-| Variable Name                    | Description                                          | Example (devl)       |
-| -------------------------------- | ---------------------------------------------------- | -------------------- |
-| `db_provisioner_role`            | Role for database/schema ops                         | `PLATFORM_DB_OWNER`  |
-| `warehouse_provisioner_role`     | Role for warehouse ops                               | `WAREHOUSE_ADMIN`    |
-| `data_object_provisioner_role`   | Role for table/file format ops                       | `DATA_OBJECT_ADMIN`  |
-| `ingest_object_provisioner_role` | Role for stage/pipe ops                              | `INGEST_ADMIN`       |
-| `snowflake_warehouse`            | Default warehouse for Terraform ops                  | `UTIL_WH`            |
-| `aws_config_path`               | Path to environment-specific AWS config JSON         | `config/aws/devl/config.json`       |
-| `snowflake_config_path`         | Path to environment-specific Snowflake config JSON   | `config/snowflake/devl/config.json` |
-| `project_code`                   | Project code prefix for resource naming              | `cust360sf`          |
+| Variable Name                    | Description                                        | Example (devl)                |
+| -------------------------------- | -------------------------------------------------- | ----------------------------- |
+| `db_provisioner_role`            | Role for database/schema ops                       | `PLATFORM_DB_OWNER`           |
+| `warehouse_provisioner_role`     | Role for warehouse ops                             | `WAREHOUSE_ADMIN`             |
+| `data_object_provisioner_role`   | Role for table/file format ops                     | `DATA_OBJECT_ADMIN`           |
+| `ingest_object_provisioner_role` | Role for stage/pipe ops                            | `INGEST_ADMIN`                |
+| `snowflake_warehouse`            | Default warehouse for Terraform ops                | `UTIL_WH`                     |
+| `aws_config_path`               | Path to environment-specific AWS config JSON       | `config/aws/devl/config.json` |
+| `snowflake_config_path`         | Path to environment-specific Snowflake config JSON | `config/snowflake/devl/config.json` |
+| `project_code`                   | Project code prefix for resource naming            | `cust360sf`                   |
 
-### 5. Configure Local Terraform Variables
+### 4. Configure Local Terraform Variables
 
-For local development, copy the environment-specific tfvars and add the connection secrets (the resulting file is gitignored):
+For local development, copy the environment-specific tfvars file:
 
 ```bash
 cd infra/platform/tf
 cp environments/devl/terraform.tfvars terraform.tfvars
 ```
 
-Append the Snowflake connection variables that would normally come from the HCP Variable Set:
+Set the Snowflake connection variables as environment variables (these would normally come from the HCP Variable Set):
 
-```hcl
-snowflake_organization_name  = "YOUR_ORG"
-snowflake_account_name       = "YOUR_ACCOUNT"
-snowflake_user               = "TF_PROVISIONER_USER"
-snowflake_private_key        = "<private key body from Step 3>"
+```bash
+export SNOWFLAKE_PRIVATE_KEY="$(cat ../../keypair/snowflake_key.p8)"
+export TF_VAR_snowflake_organization_name="YOUR_ORG"
+export TF_VAR_snowflake_account_name="YOUR_ACCOUNT"
+export TF_VAR_snowflake_user="GITHUB_ACTIONS_USER"
 ```
 
-### 6. Deploy Infrastructure
+### 5. Deploy Infrastructure
 
 ```bash
 cd infra/platform/tf

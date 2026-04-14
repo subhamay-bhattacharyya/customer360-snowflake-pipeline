@@ -39,13 +39,6 @@ variable "snowflake_user" {
   type        = string
 }
 
-variable "snowflake_private_key" {
-  description = "Unused — private key is passed via SNOWFLAKE_PRIVATE_KEY env var. Kept for backward compatibility."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "db_provisioner_role" {
   description = "Snowflake role for database provisioning operations"
   type        = string
