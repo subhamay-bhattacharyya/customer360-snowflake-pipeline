@@ -43,6 +43,7 @@ All notable changes to this project will be documented in this file.
 - Update HCP variable set instructions with working configuration
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
 
 ### Features
 
