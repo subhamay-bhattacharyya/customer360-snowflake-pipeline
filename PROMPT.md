@@ -2,7 +2,7 @@
 
 ## Task
 
-Update both `input-jsons/aws/config.json` and `input-jsons/snowflake/config.json`
+Update both `infra/platform/tf/config/aws/config.json` and `infra/platform/tf/config/snowflake/config.json`
 to fully configure the NorthBridge Customer 360 pipeline as defined in `CLAUDE.md`
 and the project issue.
 
@@ -11,7 +11,7 @@ to edit. Do not generate any config values from memory.
 
 ---
 
-## Step 1 — Update `input-jsons/aws/config.json`
+## Step 1 — Update `infra/platform/tf/config/aws/config.json`
 
 ### 1a. Read skills first
 
@@ -58,7 +58,7 @@ Read the following skills in order before editing:
 
 ---
 
-## Step 2 — Update `input-jsons/snowflake/config.json`
+## Step 2 — Update `infra/platform/tf/config/snowflake/config.json`
 
 ### 2a. Read skills first
 

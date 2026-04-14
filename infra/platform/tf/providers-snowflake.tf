@@ -4,8 +4,11 @@
 # ============================================================================
 # Authentication: Uses JWT with private key via SNOWFLAKE_PRIVATE_KEY env var
 # 
-# Required environment variables (set in CI/CD workflow):
+# Required environment variables (set in CI/CD workflow or HCP workspace):
 #   - SNOWFLAKE_PRIVATE_KEY (the private key content)
+#   - SNOWFLAKE_ORGANIZATION_NAME
+#   - SNOWFLAKE_ACCOUNT_NAME
+#   - SNOWFLAKE_USER
 #
 # Provider Aliases:
 #   - default (db_provisioner_role)    : Database/Schema creation
@@ -16,9 +19,8 @@
 
 # Default provider - uses db_provisioner_role for database/schema operations
 provider "snowflake" {
-  organization_name = var.snowflake_organization_name != "" ? var.snowflake_organization_name : null
-  account_name      = var.snowflake_account_name != "" ? var.snowflake_account_name : null
-  user              = var.snowflake_user != "" ? var.snowflake_user : null
+  # organization_name, account_name, and user are read from environment variables:
+  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -40,9 +42,8 @@ provider "snowflake" {
 # Alias for db_provisioner (same as default, for explicit module references)
 provider "snowflake" {
   alias             = "db_provisioner"
-  organization_name = var.snowflake_organization_name != "" ? var.snowflake_organization_name : null
-  account_name      = var.snowflake_account_name != "" ? var.snowflake_account_name : null
-  user              = var.snowflake_user != "" ? var.snowflake_user : null
+  # organization_name, account_name, and user are read from environment variables:
+  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
   role              = var.db_provisioner_role != "" ? var.db_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -63,9 +64,8 @@ provider "snowflake" {
 
 provider "snowflake" {
   alias             = "warehouse_provisioner"
-  organization_name = var.snowflake_organization_name != "" ? var.snowflake_organization_name : null
-  account_name      = var.snowflake_account_name != "" ? var.snowflake_account_name : null
-  user              = var.snowflake_user != "" ? var.snowflake_user : null
+  # organization_name, account_name, and user are read from environment variables:
+  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
   role              = var.warehouse_provisioner_role != "" ? var.warehouse_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -84,9 +84,8 @@ provider "snowflake" {
 
 provider "snowflake" {
   alias             = "data_object_provisioner"
-  organization_name = var.snowflake_organization_name != "" ? var.snowflake_organization_name : null
-  account_name      = var.snowflake_account_name != "" ? var.snowflake_account_name : null
-  user              = var.snowflake_user != "" ? var.snowflake_user : null
+  # organization_name, account_name, and user are read from environment variables:
+  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
   role              = var.data_object_provisioner_role != "" ? var.data_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"
@@ -107,9 +106,8 @@ provider "snowflake" {
 
 provider "snowflake" {
   alias             = "ingest_object_provisioner"
-  organization_name = var.snowflake_organization_name != "" ? var.snowflake_organization_name : null
-  account_name      = var.snowflake_account_name != "" ? var.snowflake_account_name : null
-  user              = var.snowflake_user != "" ? var.snowflake_user : null
+  # organization_name, account_name, and user are read from environment variables:
+  # SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
   role              = var.ingest_object_provisioner_role != "" ? var.ingest_object_provisioner_role : null
   warehouse         = var.snowflake_warehouse != "" ? var.snowflake_warehouse : null
   authenticator     = "SNOWFLAKE_JWT"

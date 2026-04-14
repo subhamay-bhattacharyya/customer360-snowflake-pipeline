@@ -2,7 +2,7 @@
 name: snowflake-config-tables
 description: >
   Use this skill whenever writing, editing, or validating the `tables` block
-  inside `input-jsons/snowflake/config.json` for the Customer 360 / NorthBridge
+  inside `infra/platform/tf/config/snowflake/config.json` for the Customer 360 / NorthBridge
   Snowflake pipeline. Trigger when the user wants to: add a new table to the
   config JSON; define columns with types, nullability, autoincrement, or
   defaults; set a primary key; choose between TRANSIENT and PERMANENT table
@@ -16,7 +16,7 @@ description: >
 # Snowflake Config — Tables
 
 This skill governs the `databases.*.schemas[].tables` block in
-`input-jsons/snowflake/config.json`. Every table consumed by
+`infra/platform/tf/config/snowflake/config.json`. Every table consumed by
 `module.table` in `main.tf` must be defined here.
 
 ---

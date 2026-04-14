@@ -2,7 +2,7 @@
 name: snowflake-config-stages-fileformats
 description: >
   Use this skill whenever writing, editing, or validating the `stages` or
-  `file_formats` blocks inside `input-jsons/snowflake/config.json` for the
+  `file_formats` blocks inside `infra/platform/tf/config/snowflake/config.json` for the
   Customer 360 / NorthBridge Snowflake pipeline. Trigger when the user wants
   to: add an external S3 stage or internal stage; configure a JSON file format
   with parsing options (strip_outer_array, compression, allow_duplicate, etc.);
@@ -16,7 +16,7 @@ description: >
 # Snowflake Config — Stages & File Formats
 
 This skill governs the `stages` and `file_formats` blocks nested inside
-`databases.*.schemas[]` in `input-jsons/snowflake/config.json`. Both blocks
+`databases.*.schemas[]` in `infra/platform/tf/config/snowflake/config.json`. Both blocks
 are consumed by `module.stage` and `module.file_formats` in `main.tf`.
 
 ---

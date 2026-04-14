@@ -172,7 +172,7 @@ module "table" {
 #    - Creates all resources with placeholder trust policy
 # 2. Second apply: terraform apply -var="enable_trust_policy_update=true"
 #    - Updates trust policy with Snowflake values
-# 3. Update input-jsons/aws/config.json with the Snowflake values from output
+# 3. Update config/aws/{env}/config.json with the Snowflake values from output
 # 4. Future applies: terraform apply (no flag needed, uses JSON config values)
 # ----------------------------------------------------------------------------
 

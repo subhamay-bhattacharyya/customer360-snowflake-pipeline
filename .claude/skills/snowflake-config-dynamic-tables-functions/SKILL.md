@@ -2,7 +2,7 @@
 name: snowflake-config-dynamic-tables-functions
 description: >
   Use this skill whenever writing, editing, or validating the `dynamic_tables`
-  or `functions` blocks inside `input-jsons/snowflake/config.json` for the
+  or `functions` blocks inside `infra/platform/tf/config/snowflake/config.json` for the
   Customer 360 / NorthBridge Snowflake pipeline. Trigger when the user wants
   to: add or configure a dynamic table (CLEAN_NORTHBRIDGE_DT) in the SILVER
   schema; set target_lag and warehouse for a dynamic table; reference a SQL
@@ -17,7 +17,7 @@ description: >
 # Snowflake Config — Dynamic Tables & Functions
 
 This skill governs the `dynamic_tables` and `functions` blocks nested inside
-`databases.*.schemas[]` in `input-jsons/snowflake/config.json`. These are
+`databases.*.schemas[]` in `infra/platform/tf/config/snowflake/config.json`. These are
 consumed by `module.dynamic_table` (Phase 5) in `main.tf`.
 
 ---

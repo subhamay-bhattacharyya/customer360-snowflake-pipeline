@@ -9,13 +9,11 @@ on:
       - 'bug/**'
     paths:
       - infra/platform/tf/**
-      - input-jsons/**
       - .github/workflows/ci.yaml
   pull_request:
     branches: [main]
     paths:
       - infra/platform/tf/**
-      - input-jsons/**
   workflow_dispatch:
 
 permissions:
@@ -35,7 +33,7 @@ jobs:
       cloud-provider: platform
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
-      tf-vars-file: tfvar/devl/terraform.tfvars
+      tf-vars-file: environments/devl/terraform.tfvars
       # aws-region: ${{ vars.AWS_REGION }}
       snowflake-user: ${{ vars.SNOWFLAKE_USER }}
       # snowflake-organization-name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}

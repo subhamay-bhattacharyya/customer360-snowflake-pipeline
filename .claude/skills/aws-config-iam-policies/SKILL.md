@@ -2,7 +2,7 @@
 name: aws-config-iam-policies
 description: >
   Use this skill whenever writing, editing, or validating the `aws.iam` block
-  inside `input-jsons/aws/config.json` for the Customer 360 / NorthBridge
+  inside `infra/platform/tf/config/aws/config.json` for the Customer 360 / NorthBridge
   Snowflake pipeline. Trigger when the user wants to: add or modify the IAM
   role name; add, remove, or update IAM policy statements in the `policies[]`
   array; adjust S3 or KMS permissions for the Snowflake storage integration
@@ -16,7 +16,7 @@ description: >
 
 # AWS Config — IAM Role & Policies Block
 
-This skill governs the `aws.iam` block in `input-jsons/aws/config.json`.
+This skill governs the `aws.iam` block in `infra/platform/tf/config/aws/config.json`.
 It is consumed by `module.iam_role` (Phase 1.2) and
 `module.aws_iam_role_final` (Phase 3) in `main.tf`.
 

@@ -24,23 +24,9 @@ variable "project_code" {
 # Snowflake Provider Variables
 # ============================================================================
 
-variable "snowflake_organization_name" {
-  description = "Snowflake organization name"
-  type        = string
-  default     = ""
-}
-
-variable "snowflake_account_name" {
-  description = "Snowflake account name"
-  type        = string
-  default     = ""
-}
-
-variable "snowflake_user" {
-  description = "Snowflake user for Terraform operations"
-  type        = string
-  default     = ""
-}
+## snowflake_organization_name, snowflake_account_name, and snowflake_user
+## are now read from environment variables:
+## SNOWFLAKE_ORGANIZATION_NAME, SNOWFLAKE_ACCOUNT_NAME, SNOWFLAKE_USER
 
 variable "db_provisioner_role" {
   description = "Snowflake role for database provisioning operations"
@@ -82,13 +68,13 @@ variable "snowflake_warehouse" {
 variable "aws_config_path" {
   description = "Path to AWS config JSON file (relative to module)"
   type        = string
-  default     = "../../../input-jsons/aws/devl/config.json"
+  default     = "config/aws/devl/config.json"
 }
 
 variable "snowflake_config_path" {
   description = "Path to Snowflake config JSON file (relative to module)"
   type        = string
-  default     = "../../../input-jsons/snowflake/devl/config.json"
+  default     = "config/snowflake/devl/config.json"
 }
 
 # ============================================================================

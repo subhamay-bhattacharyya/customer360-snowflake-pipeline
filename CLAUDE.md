@@ -14,7 +14,7 @@ End-to-end data pipeline on Snowflake + AWS. Raw NORTHBRIDGE banking JSON files 
 
 This project uses a set of installed skills. Claude Code **must consult the relevant skill before editing any input JSON config or Terraform template**. Do not generate config blocks from memory — always read the skill first.
 
-### AWS config skills (`input-jsons/aws/config.json`)
+### AWS config skills (`infra/platform/tf/config/aws/config.json`)
 
 | Skill                      | Consult when editing                                             |
 | -------------------------- | ---------------------------------------------------------------- |
@@ -22,7 +22,7 @@ This project uses a set of installed skills. Claude Code **must consult the rele
 | `aws-config-iam-policies`  | `aws.iam.role_name`, `aws.iam.policies[]`                        |
 | `aws-config-trust`         | `trust.snowflake_principal_arn`, `trust.snowflake_external_id`   |
 
-### Snowflake config skills (`input-jsons/snowflake/config.json`)
+### Snowflake config skills (`infra/platform/tf/config/snowflake/config.json`)
 
 | Skill                                        | Consult when editing                                                                                     |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -77,13 +77,13 @@ Hooks include: `terraform_fmt`, `terraform_validate`, `terraform_providers_lock`
 
 ### CI Pipeline
 
-CI runs on push to `main`, `feature/**`, `bug/**` branches and on PRs to `main`. It only triggers on changes to `infra/platform/tf/**`, `input-jsons/**`, or `.github/workflows/ci.yaml`. Uses a reusable workflow from `subhamay-bhattacharyya-gha/tf-ci-reusable-wf` with Terraform Cloud remote backend. Changelog is auto-generated via git-cliff on non-main branches; releases are auto-created on merge to main.
+CI runs on push to `main`, `feature/**`, `bug/**` branches and on PRs to `main`. It only triggers on changes to `infra/platform/tf/**`, `infra/platform/tf/config/**`, or `.github/workflows/ci.yaml`. Uses a reusable workflow from `subhamay-bhattacharyya-gha/tf-ci-reusable-wf` with Terraform Cloud remote backend. Changelog is auto-generated via git-cliff on non-main branches; releases are auto-created on merge to main.
 
 ---
 
 ## Version Constraints
 
-- **Terraform**: >= 1.14.1
+- **Terraform**: >= 1.4.1
 - **AWS provider**: >= 5.0
 - **Snowflake provider**: >= 1.0.0 (`snowflakedb/snowflake`)
 - **Random provider**: >= 3.0
@@ -150,19 +150,19 @@ Terraform reads all resource definitions from JSON config files. **Never hardcod
 
 | File                                | Purpose                                                                                                          | Skills                                                                                                                                                |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `input-jsons/aws/config.json`       | S3, IAM role, IAM policies, trust block                                                                          | `aws-config-s3`, `aws-config-iam-policies`, `aws-config-trust`                                                                                        |
-| `input-jsons/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, streams, tasks, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-streams-tasks-pipes`, `snowflake-config-dynamic-tables-functions` |
+| `infra/platform/tf/config/aws/config.json`       | S3, IAM role, IAM policies, trust block                                                                          | `aws-config-s3`, `aws-config-iam-policies`, `aws-config-trust`                                                                                        |
+| `infra/platform/tf/config/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, streams, tasks, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-streams-tasks-pipes`, `snowflake-config-dynamic-tables-functions` |
 
-`input-jsons/snowflake/config.backup.json` is a safe reference copy — do not delete or overwrite it.
+`infra/platform/tf/config/snowflake/config.backup.json` is a safe reference copy — do not delete or overwrite it.
 
-Environment-specific overrides live in `input-jsons/aws/{devl,test,prod}/` and `infra/platform/tf/tfvar/{devl,test,prod}/terraform.tfvars`.
+Environment-specific overrides live in `infra/platform/tf/config/aws/{devl,test,prod}/` and `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars`.
 
 ### AWS Config JSON structure
 
 > Consult `aws-config-s3`, `aws-config-iam-policies`, and `aws-config-trust` skills before editing.
 
 ```text
-input-jsons/aws/config.json
+infra/platform/tf/config/aws/config.json
 ├── aws.region                    ← aws-config-s3
 ├── aws.s3.*                      ← aws-config-s3
 │   ├── bucket_name, bucket_keys, versioning, kms_key_alias
@@ -181,7 +181,7 @@ input-jsons/aws/config.json
 > Consult the appropriate Snowflake skill before editing each block.
 
 ```text
-input-jsons/snowflake/config.json
+infra/platform/tf/config/snowflake/config.json
 ├── warehouses.*                  ← no dedicated skill; follow existing patterns
 ├── databases.*.schemas[]
 │   ├── tables.*                  ← snowflake-config-tables
@@ -228,7 +228,7 @@ The IAM role trust policy requires two `terraform apply` runs on a fresh deploym
 
 ## Conventions
 
-- **Names come from `input-jsons/`** — never hardcode Snowflake or AWS resource names in `.tf` files
+- **Names come from `infra/platform/tf/config/`** — never hardcode Snowflake or AWS resource names in `.tf` files
 - **Consult the relevant skill before editing config JSON** — see [Skills](#skills) for the mapping
 - **SQL goes in `.tpl` templates** — no multi-line SQL strings inside HCL
 - **Schema prefix required** in all SQL — write `BRONZE.RAW_NORTHBRIDGE`, never just `RAW_NORTHBRIDGE`

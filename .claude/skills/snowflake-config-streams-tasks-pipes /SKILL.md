@@ -2,7 +2,7 @@
 name: snowflake-config-streams-tasks-pipes
 description: >
   Use this skill whenever writing, editing, or validating the `streams`,
-  `tasks`, or `snowpipes` blocks inside `input-jsons/snowflake/config.json`
+  `tasks`, or `snowpipes` blocks inside `infra/platform/tf/config/snowflake/config.json`
   for the Customer 360 / NorthBridge Snowflake pipeline. Trigger when the
   user wants to: add a stream to capture incremental changes from a BRONZE
   table; define a scheduled or stream-triggered task; configure a Snowpipe
@@ -17,7 +17,7 @@ description: >
 # Snowflake Config — Streams, Tasks & Snowpipes
 
 This skill governs the `streams`, `tasks`, and `snowpipes` blocks nested
-inside `databases.*.schemas[]` in `input-jsons/snowflake/config.json`.
+inside `databases.*.schemas[]` in `infra/platform/tf/config/snowflake/config.json`.
 These three object types form the incremental ingestion chain from BRONZE
 through SILVER to GOLD.
 

@@ -2,7 +2,7 @@
 name: aws-config-s3
 description: >
   Use this skill whenever writing, editing, or validating the `aws.s3` block
-  inside `input-jsons/aws/config.json` for the Customer 360 / NorthBridge
+  inside `infra/platform/tf/config/aws/config.json` for the Customer 360 / NorthBridge
   Snowflake pipeline. Trigger when the user wants to: set the S3 bucket name,
   region, or KMS key alias; add or modify bucket_keys (folder prefixes);
   enable or disable versioning; add a Terraform state bucket or DynamoDB
@@ -17,7 +17,7 @@ description: >
 
 # AWS Config — S3 Block
 
-This skill governs the `aws.s3` block in `input-jsons/aws/config.json`.
+This skill governs the `aws.s3` block in `infra/platform/tf/config/aws/config.json`.
 It is consumed by `module.s3` (Phase 1.1) in `main.tf`.
 
 ---
