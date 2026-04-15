@@ -4,7 +4,7 @@
 # ============================================================================
 
 terraform {
-  required_version = ">= 1.14.1"
+  required_version = "~> 1.14.0"
 
   required_providers {
     aws = {
@@ -22,6 +22,10 @@ terraform {
     null = {
       source  = "hashicorp/null"
       version = ">= 3.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = ">= 0.9"
     }
   }
 }

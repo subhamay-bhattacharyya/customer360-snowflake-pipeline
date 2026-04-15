@@ -93,3 +93,4 @@ snowflake_key.pub
 
 # Data Files
 northbridge_part*.json
+keypair/*

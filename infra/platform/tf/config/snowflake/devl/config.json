@@ -1,0 +1,342 @@
+{
+  "storage_integrations": {
+    "s3": {
+      "name": "S3_STORAGE_INTEGRATION",
+      "storage_provider": "S3",
+      "storage_allowed_locations": [
+        "/raw-data/json/"
+      ],
+      "enabled": true,
+      "comment": "S3 storage integration for NorthBridge raw data bucket"
+    }
+  },
+  "warehouses": {
+    "load_wh": {
+      "name": "LOAD_WH",
+      "comment": "Snowpipe ingestion and COPY operations",
+      "warehouse_size": "MEDIUM",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    },
+    "transform_wh": {
+      "name": "TRANSFORM_WH",
+      "comment": "Stream tasks, BRONZE to SILVER to GOLD transforms",
+      "warehouse_size": "X-SMALL",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    },
+    "streamlit_wh": {
+      "name": "STREAMLIT_WH",
+      "comment": "Dashboard queries",
+      "warehouse_size": "X-SMALL",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    },
+    "adhoc_wh": {
+      "name": "ADHOC_WH",
+      "comment": "Development and ad-hoc debugging",
+      "warehouse_size": "X-SMALL",
+      "auto_resume": true,
+      "auto_suspend": 60,
+      "enable_query_acceleration": false,
+      "warehouse_type": "STANDARD",
+      "min_cluster_count": 1,
+      "max_cluster_count": 1,
+      "scaling_policy": "STANDARD",
+      "initially_suspended": true
+    }
+  },
+  "databases": {
+    "northbridge_database": {
+      "name": "NORTHBRIDGE_DATABASE",
+      "comment": "Central analytical database for the NorthBridge Customer 360 pipeline",
+      "schemas": [
+        {
+          "name": "BRONZE",
+          "comment": "Raw ingestion layer",
+          "tables": {
+            "raw_northbridge": {
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "name": "RAW_NORTHBRIDGE",
+              "table_type": "TRANSIENT",
+              "drop_before_create": true,
+              "data_retention_time_in_days": 1,
+              "comment": "Raw ingestion table — VARIANT payload + audit columns",
+              "columns": [
+                {
+                  "name": "ID",
+                  "type": "NUMBER(38,0)",
+                  "nullable": false,
+                  "comment": "Surrogate PK",
+                  "autoincrement": {
+                    "start": 1,
+                    "increment": 1,
+                    "order": false
+                  }
+                },
+                {
+                  "name": "INDEX_RECORD_TS",
+                  "type": "TIMESTAMP_NTZ",
+                  "nullable": false,
+                  "comment": "Record timestamp from source"
+                },
+                {
+                  "name": "JSON_DATA",
+                  "type": "VARIANT",
+                  "nullable": false,
+                  "comment": "Raw JSON payload"
+                },
+                {
+                  "name": "RECORD_COUNT",
+                  "type": "NUMBER(38,0)",
+                  "nullable": false
+                },
+                {
+                  "name": "JSON_VERSION",
+                  "type": "VARCHAR(255)",
+                  "nullable": false
+                },
+                {
+                  "name": "_STG_FILE_NAME",
+                  "type": "VARCHAR(500)",
+                  "nullable": true,
+                  "comment": "Audit — source stage file name"
+                },
+                {
+                  "name": "_STG_FILE_LOAD_TS",
+                  "type": "TIMESTAMP_NTZ",
+                  "nullable": true,
+                  "comment": "Audit — stage load timestamp"
+                },
+                {
+                  "name": "_STG_FILE_MD5",
+                  "type": "VARCHAR(32)",
+                  "nullable": true,
+                  "comment": "Audit — MD5 hash of stage file"
+                },
+                {
+                  "name": "_COPY_DATA_TS",
+                  "type": "TIMESTAMP_NTZ",
+                  "nullable": true,
+                  "comment": "Audit — COPY INTO execution timestamp"
+                }
+              ],
+              "primary_key": {
+                "keys": [
+                  "ID"
+                ]
+              }
+            }
+          },
+          "file_formats": {
+            "json_file_format": {
+              "name": "JSON_FILE_FORMAT",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "type": "JSON",
+              "compression": "AUTO",
+              "enable_octal": false,
+              "allow_duplicate": false,
+              "strip_outer_array": false,
+              "strip_null_values": false,
+              "ignore_utf8_errors": false,
+              "comment": "JSON parsing config for NorthBridge raw ingestion"
+            }
+          },
+          "stages": {
+            "raw_external_stg": {
+              "name": "RAW_EXTERNAL_STG",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "stage_type": "external",
+              "url": "s3://northbridge-raw-data/raw-data/json/",
+              "storage_integration": "S3_STORAGE_INTEGRATION",
+              "file_format": "JSON_FILE_FORMAT",
+              "comment": "External S3 stage for NorthBridge raw JSON ingestion"
+            },
+            "raw_internal_stg": {
+              "name": "RAW_INTERNAL_STG",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "stage_type": "internal",
+              "file_format": "JSON_FILE_FORMAT",
+              "directory_enabled": true,
+              "comment": "Internal stage for temporary file processing"
+            }
+          },
+          "streams": {
+            "raw_northbridge_stream": {
+              "name": "RAW_NORTHBRIDGE_STREAM",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "source": "RAW_NORTHBRIDGE",
+              "append_only": true,
+              "comment": "Captures incremental inserts to trigger downstream task"
+            }
+          },
+          "tasks": {
+            "copy_banking_data": {
+              "name": "COPY_BANKING_DATA",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "warehouse": "LOAD_WH",
+              "schedule": "5 MINUTE",
+              "sql_template_file": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
+              "comment": "Scheduled COPY INTO from external stage to BRONZE table"
+            },
+            "process_northbridge_stream_task": {
+              "name": "PROCESS_NORTHBRIDGE_STREAM_TASK",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "warehouse": "TRANSFORM_WH",
+              "stream_trigger": "RAW_NORTHBRIDGE_STREAM",
+              "sql_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
+              "comment": "Stream-triggered task — BRONZE to SILVER to GOLD transforms"
+            },
+            "refresh_customer_data_task": {
+              "name": "REFRESH_CUSTOMER_DATA_TASK",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "warehouse": "TRANSFORM_WH",
+              "schedule": "60 MINUTE",
+              "comment": "Periodic enrichment of customer data"
+            }
+          },
+          "snowpipes": {
+            "raw_northbridge_pipe": {
+              "name": "RAW_NORTHBRIDGE_PIPE",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "table": "RAW_NORTHBRIDGE",
+              "stage": "RAW_EXTERNAL_STG",
+              "file_format": "JSON_FILE_FORMAT",
+              "copy_template": "raw_northbridge_copy.tpl",
+              "auto_ingest": true,
+              "filter_suffix": ".json",
+              "comment": "Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
+            }
+          }
+        },
+        {
+          "name": "SILVER",
+          "comment": "Cleansed and typed data layer",
+          "dynamic_tables": {
+            "clean_northbridge_dt": {
+              "name": "CLEAN_NORTHBRIDGE_DT",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "SILVER",
+              "warehouse": "LOAD_WH",
+              "target_lag": "downstream",
+              "refresh_mode": "AUTO",
+              "initialize": "ON_CREATE",
+              "query_template_file": "clean_northbridge.tpl",
+              "comment": "Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GOLD",
+          "comment": "Modelled data layer for analytics and dashboards",
+          "functions": {
+            "prominent_index": {
+              "name": "PROMINENT_INDEX",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "language": "JAVASCRIPT",
+              "return_type": "VARCHAR",
+              "arguments": [
+                {
+                  "name": "credit_score",
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "risk_rating",
+                  "type": "VARCHAR"
+                }
+              ],
+              "body_template_file": "templates/functions/prominent_index.tpl",
+              "comment": "Returns the dominant customer risk index",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "USAGE"
+                  ]
+                }
+              ]
+            },
+            "three_sub_index_criteria": {
+              "name": "THREE_SUB_INDEX_CRITERIA",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "language": "SQL",
+              "return_type": "BOOLEAN",
+              "arguments": [
+                {
+                  "name": "income_tier",
+                  "type": "VARCHAR"
+                },
+                {
+                  "name": "credit_tier",
+                  "type": "VARCHAR"
+                },
+                {
+                  "name": "kyc_status",
+                  "type": "VARCHAR"
+                }
+              ],
+              "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
+              "comment": "Customer scoring evaluation logic — returns true if 3 sub-criteria met"
+            },
+            "get_int": {
+              "name": "GET_INT",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "language": "SQL",
+              "return_type": "NUMBER",
+              "arguments": [
+                {
+                  "name": "val",
+                  "type": "VARIANT"
+                }
+              ],
+              "body": "SELECT val::NUMBER",
+              "comment": "Helper — safely casts VARIANT to NUMBER"
+            }
+          }
+        },
+        {
+          "name": "STREAMLIT",
+          "comment": "Dashboard scripts for Streamlit in Snowflake"
+        }
+      ]
+    }
+  }
+}

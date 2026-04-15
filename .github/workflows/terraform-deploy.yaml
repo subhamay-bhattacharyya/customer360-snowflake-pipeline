@@ -27,7 +27,7 @@ jobs:
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
       aws-region: ${{ vars.AWS_REGION }}
-      tf-vars-file: tfvar/${{ github.event.inputs.environment }}/terraform.tfvars
+      tf-vars-file: environments/${{ github.event.inputs.environment }}/terraform.tfvars
       snowflake-user: ${{ vars.SNOWFLAKE_USER }}
       snowflake-organization-name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
       snowflake-account-name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}

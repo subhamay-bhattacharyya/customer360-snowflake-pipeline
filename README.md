@@ -1,339 +1,633 @@
-# Snowflake Dynamic Table Tutorial
+# Customer 360 Analytics Pipeline — Snowflake Data Lake on AWS
 
-![Built with Kiro](https://img.shields.io/badge/Built_with-Kiro-8845f4?logo=robot&logoColor=white)&nbsp;![Commit Activity](https://img.shields.io/github/commit-activity/t/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Last Commit](https://img.shields.io/github/last-commit/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Release Date](https://img.shields.io/github/release-date/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Repo Size](https://img.shields.io/github/repo-size/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![File Count](https://img.shields.io/github/directory-file-count/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Issues](https://img.shields.io/github/issues/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Top Language](https://img.shields.io/github/languages/top/subhamay-bhattacharyya/snowflake-dynamic-table-tutorial)&nbsp;![Custom Endpoint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/bsubhamay/62c0119f3568e2b8e12f9b1b9cd1c80d/raw/snowflake-dynamic-table-tutorial.json?)
+![Built with Claude Code](https://img.shields.io/badge/Built_with-Claude_Code-D97757?logo=anthropic&logoColor=white)&nbsp;![Built with Snowflake CoCo](https://img.shields.io/badge/Built_with-Snowflake_CoCo-29B5E8?logo=snowflake&logoColor=white)&nbsp;![Commit Activity](https://img.shields.io/github/commit-activity/t/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Last Commit](https://img.shields.io/github/last-commit/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Release Date](https://img.shields.io/github/release-date/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Repo Size](https://img.shields.io/github/repo-size/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![File Count](https://img.shields.io/github/directory-file-count/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Issues](https://img.shields.io/github/issues/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Top Language](https://img.shields.io/github/languages/top/subhamay-bhattacharyya/customer360-snowflake-pipeline)&nbsp;![Custom Endpoint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/bsubhamay/a67e3709024d310f0c41772c4b1c628d/raw/customer360-snowflake-pipeline.json?)
 
-A hands-on tutorial for Snowflake Dynamic Tables with Infrastructure as Code (Terraform) and automated deployment using GitHub Actions.
+A Terraform-managed Snowflake data lake that ingests 25,000 nested JSON banking records through a BRONZE → SILVER → GOLD medallion pipeline and surfaces a Customer 360 risk analytics dashboard via Streamlit in Snowflake.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+  - [1. Generate RSA Keypair](#1-generate-rsa-keypair)
+  - [2. Create Snowflake Service User and Roles](#2-create-snowflake-service-user-and-roles)
+  - [3. Configure HCP Terraform Variable Sets](#3-configure-hcp-terraform-variable-sets)
+  - [4. Configure Local Terraform Variables](#4-configure-local-terraform-variables)
+  - [5. Deploy Infrastructure](#5-deploy-infrastructure)
+  - [6. Upload Source Data](#6-upload-source-data)
+  - [7. Verify the Pipeline](#7-verify-the-pipeline)
+  - [8. Deploy the Streamlit Dashboard](#8-deploy-the-streamlit-dashboard)
+- [Snowflake Objects](#snowflake-objects)
+- [Streamlit Dashboard](#streamlit-dashboard)
+- [Dataset](#dataset)
+- [Domain Glossary](#domain-glossary)
+- [Teardown](#teardown)
+- [License](#license)
+
+---
 
 ## Overview
 
-This tutorial demonstrates Snowflake Dynamic Tables - a declarative data transformation feature that automatically refreshes based on changes in underlying base tables. The project includes:
+**NorthBridge Bank** is a fictional retail bank whose customer data is fragmented across core banking, loan origination, CRM, and transaction processing systems. This project consolidates that data into a unified analytical layer on Snowflake, enabling:
 
-- **HRMS Database**: Sample HR schema with EMPLOYEES, DEPARTMENTS, and related tables
-- **Dynamic Tables**: Three variations demonstrating different TARGET_LAG and INITIALIZE options
-- **Infrastructure as Code**: Terraform configurations for Snowflake resources
-- **Seed Data**: Sample data for testing dynamic table behavior
+- Customer 360 profiling across all products and channels
+- Loan portfolio health monitoring and NPL tracking
+- Transaction trend analysis by channel, segment, and region
+- AML/KYC compliance risk scoring and flagging
 
-## Dynamic Tables - Key Concepts
+All AWS and Snowflake infrastructure is provisioned via **Terraform** with a config-driven approach — resource names come from `input-jsons/` and are never hardcoded in `.tf` files.
 
-Dynamic Tables provide declarative data transformation pipelines with automatic refresh capabilities. Key parameters:
+---
 
-| Parameter | Options | Description |
-|-----------|---------|-------------|
-| TARGET_LAG | Time interval (e.g., '60 minutes') or 'DOWNSTREAM' | Maximum staleness allowed for the dynamic table data |
-| REFRESH_MODE | AUTO, FULL, INCREMENTAL | How the table refreshes (AUTO tries INCREMENTAL first, then FULL) |
-| INITIALIZE | ON_CREATE, ON_SCHEDULE | When to populate the table initially |
-| WAREHOUSE | Warehouse name | Required compute resource for refresh operations |
+## Architecture
 
-## Dynamic Table SQL Reference
+### Data Pipeline
 
-### Use Case 1: Create Dynamic Table with ON_SCHEDULE Initialize
-
-```sql
--- Dynamic table that waits for scheduled refresh before populating
-USE DATABASE HRMS;
-USE SCHEMA HR;
-
-CREATE OR REPLACE DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_SCHEDULE
-    TARGET_LAG = '60 minutes'
-    WAREHOUSE = 'DYT_LAB_01_WH'
-    REFRESH_MODE = AUTO               -- AUTO|FULL|INCREMENTAL
-    INITIALIZE = ON_SCHEDULE          -- ON_SCHEDULE|ON_CREATE
-AS
-SELECT
-    E.EMPLOYEE_ID,
-    E.JOB_ID,
-    E.MANAGER_ID,
-    E.DEPARTMENT_ID,
-    E.EMAIL,
-    D.LOCATION_ID,
-    E.FIRST_NAME,
-    E.LAST_NAME,
-    E.SALARY,
-    E.COMMISSION_PCT,
-    D.DEPARTMENT_NAME
-FROM
-    HRMS.HR.EMPLOYEES E
-    INNER JOIN HRMS.HR.DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID;
+```text
+S3 (northbridge-raw-data/raw-data/json/)
+        │
+        ▼  s3:ObjectCreated:* → SQS event notification
+        │
+        ▼  Snowpipe auto-ingest (RAW_NORTHBRIDGE_PIPE)
+BRONZE  →  RAW_NORTHBRIDGE          (VARIANT + audit columns, 25,000 records)
+        │
+        ▼  RAW_NORTHBRIDGE_STREAM → PROCESS_NORTHBRIDGE_STREAM_TASK
+SILVER  →  CLEAN_NORTHBRIDGE_DT    (Dynamic Table — typed & cleansed)
+        │
+        ▼  Dynamic Tables + UDFs (PROMINENT_INDEX, THREE_SUB_INDEX_CRITERIA, GET_INT)
+GOLD    →  DIM_CUSTOMER · DIM_BRANCH · DIM_PRODUCT · DIM_DATE
+           FACT_TRANSACTIONS · FACT_LOANS · FACT_ACCOUNT_BALANCES
+           V_KPI_SUMMARY · V_SEGMENT_STATS · V_LOAN_PORTFOLIO
+           V_MONTHLY_TXN_TRENDS · V_REGIONAL_PERF · V_RISK_DISTRIBUTION
+        │
+        ▼  Streamlit in Snowflake (STREAMLIT_WH)
+STREAMLIT → Customer 360 Dashboard  (5 tabs · sidebar filters)
 ```
 
-> **Expected Behavior:** The dynamic table is created but remains empty initially. If you query it immediately after creation, you will get an error: "Dynamic Table is not initialized. Please run a manual refresh or wait for the scheduled refresh before querying." You must either wait up to 60 minutes for the first scheduled refresh or run a manual refresh:
->
-> ```sql
-> ALTER DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_SCHEDULE REFRESH;
-> ```
+### Terraform Provisioning — 5 Phases
 
-### Use Case 2: Create Dynamic Table with ON_CREATE Initialize
+```text
+Phase 1 ── AWS Resources
+           module.s3          → S3 bucket (landing zone + Terraform state)
+           module.iam_role    → IAM role (placeholder trust policy)
 
-```sql
--- Dynamic table that populates immediately upon creation
-CREATE OR REPLACE DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_CREATE
-    TARGET_LAG = '60 minutes'
-    WAREHOUSE = 'DYT_LAB_01_WH'
-    REFRESH_MODE = AUTO        -- AUTO|FULL|INCREMENTAL
-    INITIALIZE = ON_CREATE     -- ON_SCHEDULE|ON_CREATE
-AS
-SELECT
-    E.EMPLOYEE_ID,
-    E.JOB_ID,
-    E.MANAGER_ID,
-    E.DEPARTMENT_ID,
-    E.EMAIL,
-    D.LOCATION_ID,
-    E.FIRST_NAME,
-    E.LAST_NAME,
-    E.SALARY,
-    E.COMMISSION_PCT,
-    D.DEPARTMENT_NAME
-FROM
-    HRMS.HR.EMPLOYEES E
-    INNER JOIN HRMS.HR.DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID;
+Phase 2 ── Snowflake Resources (strict dependency order)
+           module.warehouse           → LOAD_WH · TRANSFORM_WH · STREAMLIT_WH · ADHOC_WH
+           module.database_schemas    → NORTHBRIDGE_DATABASE + 4 schemas
+           module.file_formats        → JSON_FILE_FORMAT
+           module.storage_integrations → S3_STORAGE_INTEGRATION
+           module.stage               → RAW_EXTERNAL_STG · RAW_INTERNAL_STG
+           module.table               → BRONZE.RAW_NORTHBRIDGE
+
+Phase 3 ── AWS Trust Policy Update
+           module.aws_iam_role_final  → Updates IAM trust with Snowflake ARN + external ID
+                                        (enable_trust_policy_update=true)
+
+Phase 4 ── Snowpipes — BRONZE layer
+           module.pipe                → RAW_NORTHBRIDGE_PIPE (auto_ingest=true)
+           module.s3_notification     → S3 event → SQS wiring
+                                        (enable_snowpipe_creation=true)
+
+Phase 5 ── Dynamic Tables — SILVER layer
+           module.dynamic_table       → SILVER.CLEAN_NORTHBRIDGE_DT
 ```
 
-> **Expected Behavior:** The dynamic table is created and immediately populated with data from the base tables. You can query it right away without errors. Subsequent refreshes occur automatically based on the 60-minute TARGET_LAG - meaning data can be up to 60 minutes stale before an automatic refresh is triggered.
->
-> ```sql
-> SELECT * FROM DT_EMP_DEPT_LAG_60_ON_CREATE;
-> ```
-
-### Use Case 3: Create Dynamic Table with DOWNSTREAM Target Lag
-
-```sql
--- Dynamic table that only refreshes manually (no automatic refresh)
-CREATE OR REPLACE DYNAMIC TABLE DT_EMP_DEPT_DOWNSTREAM_ON_CREATE
-    TARGET_LAG = DOWNSTREAM
-    WAREHOUSE = 'DYT_LAB_01_WH'
-    REFRESH_MODE = AUTO          -- ON_SCHEDULE|ON_CREATE
-    INITIALIZE = ON_CREATE       -- ON_SCHEDULE|ON_CREATE
-AS
-SELECT
-    E.EMPLOYEE_ID,
-    E.JOB_ID,
-    E.MANAGER_ID,
-    E.DEPARTMENT_ID,
-    E.EMAIL,
-    D.LOCATION_ID,
-    E.FIRST_NAME,
-    E.LAST_NAME,
-    E.SALARY,
-    E.COMMISSION_PCT,
-    D.DEPARTMENT_NAME
-FROM
-    HRMS.HR.EMPLOYEES E
-    INNER JOIN HRMS.HR.DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID;
-```
-
-> **Expected Behavior:** The dynamic table is created and immediately populated (due to ON_CREATE). However, changes to the base tables (EMPLOYEES, DEPARTMENTS) will NOT automatically propagate to this dynamic table. No matter how long you wait, the data remains stale until you manually refresh. Use DOWNSTREAM when you want full control over when data syncs occur.
->
-> ```sql
-> ALTER DYNAMIC TABLE DT_EMP_DEPT_DOWNSTREAM_ON_CREATE REFRESH;
-> ```
-
-### Query Dynamic Table
-
-```sql
--- Select data from dynamic table
-SELECT * FROM DT_EMP_DEPT_LAG_60_ON_CREATE;
-
--- Count rows
-SELECT COUNT(*) FROM DT_EMP_DEPT_LAG_60_ON_CREATE;
-
--- Select specific employees
-SELECT * FROM DT_EMP_DEPT_LAG_60_ON_CREATE WHERE EMPLOYEE_ID IN (100, 101);
-```
-
-> **Expected Behavior:** Returns the joined employee-department data. For ON_CREATE tables, data is available immediately. For ON_SCHEDULE tables, querying before the first refresh returns an error.
-
-### Manual Refresh
-
-```sql
--- Manually refresh the dynamic table
-ALTER DYNAMIC TABLE DT_EMP_DEPT_DOWNSTREAM_ON_CREATE REFRESH;
-```
-
-> **Expected Behavior:** Forces an immediate refresh of the dynamic table. The STATISTICS column in the output shows the number of rows inserted, deleted, and copied. If there are no changes in the base tables since the last refresh, it shows "no new data". This is essential for DOWNSTREAM tables and useful for ON_SCHEDULE tables when you don't want to wait.
-
-### Suspend and Resume
-
-```sql
--- Suspend automatic refresh
-ALTER DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_SCHEDULE SUSPEND;
-
--- Resume automatic refresh
-ALTER DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_SCHEDULE RESUME;
-```
-
-> **Expected Behavior:** SUSPEND stops all automatic refresh operations - useful during maintenance on base tables (e.g., column changes, data type updates, bulk loads). The scheduling_state changes to "suspended". RESUME restarts automatic refresh and changes scheduling_state back to "running". Use `SHOW DYNAMIC TABLES` to verify the current state.
-
-### Modify Dynamic Table Parameters
-
-```sql
--- Change TARGET_LAG and WAREHOUSE
-ALTER DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_SCHEDULE SET
-    TARGET_LAG = '1 hour'
-    WAREHOUSE = 'DYT_LAB_01_WH';
-```
-
-> **Expected Behavior:** Updates the dynamic table's refresh parameters without recreating it. You can change TARGET_LAG (e.g., from '60 minutes' to '1 hour' or to 'DOWNSTREAM') and WAREHOUSE. Use `SHOW DYNAMIC TABLES` to verify the new parameter values.
-
-### View Dynamic Table Information
-
-```sql
--- Show specific dynamic table
-SHOW DYNAMIC TABLE LIKE 'DT_EMP_DEPT%';
-
--- Show all dynamic tables in schema
-SHOW DYNAMIC TABLES;
-
--- Describe dynamic table structure
-DESCRIBE DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_CREATE;
-```
-
-> **Expected Behavior:** SHOW returns metadata including: created_on, name, database, schema, rows, owner, target_lag, refresh_mode, warehouse, text (the AS query), and scheduling_state (running/suspended). DESCRIBE returns the column structure (names, data types, nullable, etc.) similar to describing a regular table.
-
-### Drop Dynamic Table
-
-```sql
-DROP DYNAMIC TABLE DT_EMP_DEPT_LAG_60_ON_CREATE;
-```
-
-> **Expected Behavior:** Permanently removes the dynamic table. This is a standard DROP operation - the table and all its data are deleted. The base tables (EMPLOYEES, DEPARTMENTS) are unaffected.
-
-### Test Data Changes with DOWNSTREAM
-
-```sql
--- Update base table
-UPDATE HRMS.HR.EMPLOYEES
-SET EMAIL = EMAIL || '@GMAIL'
-WHERE EMPLOYEE_ID IN (100, 101);
-
--- Check dynamic table (will show old values with DOWNSTREAM)
-SELECT EMPLOYEE_ID, EMAIL FROM DT_EMP_DEPT_DOWNSTREAM_ON_CREATE WHERE EMPLOYEE_ID IN (100, 101);
-
--- Manual refresh to sync changes
-ALTER DYNAMIC TABLE DT_EMP_DEPT_DOWNSTREAM_ON_CREATE REFRESH;
-
--- Verify changes are now reflected
-SELECT EMPLOYEE_ID, EMAIL FROM DT_EMP_DEPT_DOWNSTREAM_ON_CREATE WHERE EMPLOYEE_ID IN (100, 101);
-```
-
-> **Expected Behavior:** After the UPDATE, querying the DOWNSTREAM dynamic table still shows the old EMAIL values ('SKING', 'NKOCHHAR'). The changes do NOT propagate automatically. After running REFRESH, the dynamic table syncs with the base table - internally it deletes the old rows and inserts new rows with updated values. The STATISTICS output shows "2 rows inserted" (the refresh mechanism deletes old + inserts new). Subsequent queries show the updated EMAIL values ('SKING@GMAIL', 'NKOCHHAR@GMAIL').
-
-## Tutorial Use Cases
-
-This tutorial implements three dynamic tables demonstrating different configurations:
-
-| Dynamic Table | TARGET_LAG | INITIALIZE | Use Case |
-|---------------|------------|------------|----------|
-| DT_EMP_DEPT_LAG_60_ON_SCHEDULE | 60 minutes | ON_SCHEDULE | Deferred initial load, automatic refresh |
-| DT_EMP_DEPT_LAG_60_ON_CREATE | 60 minutes | ON_CREATE | Immediate initial load, automatic refresh |
-| DT_EMP_DEPT_DOWNSTREAM_ON_CREATE | DOWNSTREAM | ON_CREATE | Manual refresh only, immediate initial load |
+---
 
 ## Repository Structure
 
+```text
+customer360-snowflake-pipeline/
+├── CLAUDE.md                              # Claude Code project context
+├── README.md
+├── PROMPT.md                              # Claude Code prompt for config generation
+├── CHANGELOG.md
+│
+├── infra/platform/
+│   ├── keypair/                           # RSA keys — GITIGNORED
+│   │   ├── snowflake_key.p8               # Private key — never commit
+│   │   └── snowflake_key.pub              # Public key
+│   └── tf/                               # Terraform root module
+│       ├── main.tf                        # 5-phase orchestration
+│       ├── variables.tf
+│       ├── locals.tf
+│       ├── outputs.tf
+│       ├── backend.tf                     # S3 + DynamoDB remote state
+│       ├── providers-aws.tf
+│       ├── providers-snowflake.tf         # Multiple provider aliases
+│       ├── versions.tf
+│       ├── debug-outputs.tf               # Remove before merging to main
+│       ├── modules/
+│       │   └── iam_role_final/            # Local IAM trust policy update module
+│       ├── templates/
+│       │   ├── bucket-policy/
+│       │   │   └── s3-bucket-policy.tpl
+│       │   ├── dynamic-tables/
+│       │   │   └── clean_northbridge.tpl
+│       │   └── snowpipe-copy-statements/
+│       │       └── raw_northbridge_copy.tpl
+│       └── tests/
+│           ├── config_validation.tftest.hcl
+│           └── platform_validation.tftest.hcl
+│
+├── input-jsons/
+│   ├── aws/
+│   │   └── config.json                   # S3, IAM, trust block
+│   └── snowflake/
+│       ├── config.json                   # All Snowflake objects
+│       └── config.backup.json            # Reference copy — do not overwrite
+│
+├── snowflake-ddl/                        # Reference DDL only — not run by Terraform
+│   ├── 00_account/
+│   ├── 01_security/
+│   ├── 02_warehouses/
+│   ├── 03_databases/
+│   ├── 04_storage/
+│   ├── 05_schemas/
+│   ├── 06_pipes/
+│   ├── 07_tasks/
+│   ├── 08_functions/
+│   ├── 09_procedures/
+│   └── scripts/
+│
+├── app/
+│   └── northbridge_dashboard.py          # Streamlit in Snowflake dashboard
+│
+└── scripts/
+    └── gen_large.py                      # Synthetic dataset generator (seed=2025)
 ```
-.
-├── infra/snowflake/tf/           # Terraform configurations
-│   ├── main.tf                   # Module orchestration
-│   ├── locals.tf                 # Local variables and configurations
-│   ├── variables.tf              # Input variables
-│   ├── providers.tf              # Snowflake provider configuration
-│   ├── seed-data/                # SQL seed data files
-│   │   ├── seed.json             # Seed configuration
-│   │   ├── employees.sql         # Employee data
-│   │   ├── departments.sql       # Department data
-│   │   └── ...                   # Other seed files
-│   └── templates/dynamic-tables/ # Dynamic table query templates
-│       └── dyt_emp_dept.tpl      # Employee-Department join query
-├── input-jsons/snowflake/        # Configuration files
-│   └── config.json               # Warehouse, database, table configs
-├── CREATE_DDL_HRMS_HR.sql        # HRMS database DDL script
-└── .github/workflows/            # GitHub Actions workflows
-```
+
+---
+
+## Prerequisites
+
+| Tool | Version | Purpose |
+| --- | --- | --- |
+| Terraform | `>= 1.14.1` | Infrastructure provisioning |
+| Snowflake provider | `snowflakedb/snowflake >= 1.0.0` | Snowflake resources |
+| AWS provider | `hashicorp/aws >= 5.0` | AWS resources |
+| OpenSSL | Any current version | RSA keypair generation |
+| HCP Terraform | Account required | Remote state + CI variable sets |
+| Python | `>= 3.10` | Dataset generation only |
+
+---
 
 ## Getting Started
 
-### Prerequisites
+### 1. Generate RSA Keypair
 
-- Snowflake Account with appropriate permissions
-- Terraform >= 1.0
-- GitHub Repository with Actions enabled
-
-### 1. Configure Snowflake Authentication
-
-Set up key-pair authentication for Terraform:
+Snowflake uses RSA keypair authentication (JWT) instead of username/password. Generate the keys and store them in `infra/platform/keypair/` (gitignored):
 
 ```bash
-# Generate RSA key pair
+mkdir -p infra/platform/keypair && cd infra/platform/keypair
+
+# Step 1 — Generate 2048-bit RSA private key in PKCS#8 (unencrypted) format
 openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_key.p8 -nocrypt
+
+# Step 2 — Derive the public key
 openssl rsa -in snowflake_key.p8 -pubout -out snowflake_key.pub
 
-# Extract public key for Snowflake
+# Step 3 — Extract the public key body (strip headers and newlines) for Snowflake
 grep -v "BEGIN PUBLIC" snowflake_key.pub | grep -v "END PUBLIC" | tr -d '\n'
 ```
 
-### 2. Create Service Account in Snowflake
+Copy the output of Step 3 — you will need it in the next step.
+
+---
+
+### 2. Create Snowflake Service User and Roles
+
+#### 2a. Create provisioner roles and the GitHub Actions service user
+
+Each Terraform module uses a dedicated, least-privilege role so that no single role has broader permissions than its scope of work. The role names below are the defaults from `infra/platform/tf/variables.tf` and can be overridden per environment via `terraform.tfvars`.
+
+| Role | Scope | Used by Terraform module |
+| --- | --- | --- |
+| `DB_PROVISIONER` | Create databases and schemas | `module.database_schemas` |
+| `WAREHOUSE_PROVISIONER` | Create and manage warehouses | `module.warehouse` |
+| `DATA_OBJECT_PROVISIONER` | Create tables, file formats, and dynamic tables | `module.table`, `module.file_formats`, `module.dynamic_table` |
+| `INGEST_OBJECT_PROVISIONER` | Create storage integrations, stages, and pipes | `module.storage_integrations`, `module.stage`, `module.pipe` |
+
+Run the SQL below as `SECURITYADMIN` / `ACCOUNTADMIN`. Replace `YOUR_PUBLIC_KEY_HERE` with the output from Step 1.3.
 
 ```sql
+-- ============================================================================
+-- GitHub Actions Service User + Least-Privilege Provisioner Roles
+-- ============================================================================
+
+USE ROLE SECURITYADMIN;
+
+-- ----------------------------------------------------------------------------
+-- 1) Create provisioner roles
+-- ----------------------------------------------------------------------------
+CREATE ROLE IF NOT EXISTS DB_PROVISIONER
+  COMMENT = 'Terraform: creates databases and schemas';
+
+CREATE ROLE IF NOT EXISTS WAREHOUSE_PROVISIONER
+  COMMENT = 'Terraform: creates and manages warehouses';
+
+CREATE ROLE IF NOT EXISTS DATA_OBJECT_PROVISIONER
+  COMMENT = 'Terraform: creates tables, file formats, and dynamic tables';
+
+CREATE ROLE IF NOT EXISTS INGEST_OBJECT_PROVISIONER
+  COMMENT = 'Terraform: creates storage integrations, stages, and pipes';
+
+-- Role hierarchy — all provisioners report to SYSADMIN for governance
+GRANT ROLE DB_PROVISIONER            TO ROLE SYSADMIN;
+GRANT ROLE WAREHOUSE_PROVISIONER     TO ROLE SYSADMIN;
+GRANT ROLE DATA_OBJECT_PROVISIONER   TO ROLE SYSADMIN;
+GRANT ROLE INGEST_OBJECT_PROVISIONER TO ROLE SYSADMIN;
+
+-- ----------------------------------------------------------------------------
+-- 2) Grant account-level privileges (least privilege — only what each role needs)
+-- ----------------------------------------------------------------------------
+USE ROLE ACCOUNTADMIN;
+
+-- DB_PROVISIONER — only allowed to create databases
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE DB_PROVISIONER;
+
+-- WAREHOUSE_PROVISIONER — only allowed to create/manage warehouses
+GRANT CREATE WAREHOUSE ON ACCOUNT TO ROLE WAREHOUSE_PROVISIONER;
+GRANT MONITOR USAGE    ON ACCOUNT TO ROLE WAREHOUSE_PROVISIONER;
+
+-- INGEST_OBJECT_PROVISIONER — only allowed to create storage integrations
+-- (stages/pipes are schema-level, granted post-database in Step 2c)
+GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE INGEST_OBJECT_PROVISIONER;
+
+-- DATA_OBJECT_PROVISIONER — intentionally receives NO account-level privileges.
+-- All its privileges are schema-scoped and granted in Step 2c after the
+-- database/schemas are created by DB_PROVISIONER via Terraform.
+
+-- All roles need a warehouse to run queries — the tiny UTIL_WH is fine here
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE DB_PROVISIONER;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE WAREHOUSE_PROVISIONER;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON WAREHOUSE UTIL_WH TO ROLE INGEST_OBJECT_PROVISIONER;
+
+-- ----------------------------------------------------------------------------
+-- 3) Create the GitHub Actions service user (keypair auth only, no password)
+-- ----------------------------------------------------------------------------
+USE ROLE SECURITYADMIN;
+
 CREATE USER IF NOT EXISTS GITHUB_ACTIONS_USER
-  RSA_PUBLIC_KEY = 'YOUR_PUBLIC_KEY_HERE'
-  DEFAULT_ROLE = SYSADMIN
-  COMMENT = 'Service account for Terraform deployments';
+  LOGIN_NAME           = 'GITHUB_ACTIONS_USER'
+  DISPLAY_NAME         = 'GitHub Actions Service User'
+  DEFAULT_ROLE         = PUBLIC
+  DEFAULT_WAREHOUSE    = NULL
+  MUST_CHANGE_PASSWORD = FALSE
+  DISABLED             = FALSE
+  COMMENT              = 'Service account for Terraform deployments via GitHub Actions'
+  RSA_PUBLIC_KEY       = 'YOUR_PUBLIC_KEY_HERE';
 
-GRANT ROLE SYSADMIN TO USER GITHUB_ACTIONS_USER;
+-- ----------------------------------------------------------------------------
+-- 4) Grant provisioner roles to the service user
+-- ----------------------------------------------------------------------------
+GRANT ROLE DB_PROVISIONER            TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE WAREHOUSE_PROVISIONER     TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE DATA_OBJECT_PROVISIONER   TO USER GITHUB_ACTIONS_USER;
+GRANT ROLE INGEST_OBJECT_PROVISIONER TO USER GITHUB_ACTIONS_USER;
+
+-- ----------------------------------------------------------------------------
+-- 5) Verify
+-- ----------------------------------------------------------------------------
+SHOW USERS LIKE 'GITHUB_ACTIONS_USER';
+SHOW GRANTS TO USER GITHUB_ACTIONS_USER;
+SHOW GRANTS TO ROLE DB_PROVISIONER;
+SHOW GRANTS TO ROLE WAREHOUSE_PROVISIONER;
+SHOW GRANTS TO ROLE DATA_OBJECT_PROVISIONER;
+SHOW GRANTS TO ROLE INGEST_OBJECT_PROVISIONER;
 ```
 
-### 3. Configure Terraform Variables
+#### 2b. Create the analyst read-only role
 
-Update `infra/snowflake/tf/terraform.tfvars`:
+Run as `ACCOUNTADMIN`. Replace `<DATABASE_NAME>`, `<SCHEMA_NAME>`, and `<ANALYST_USERNAME>` as required.
 
-```hcl
-snowflake_organization_name  = "YOUR_ORG"
-snowflake_account_name       = "YOUR_ACCOUNT"
-snowflake_user               = "GITHUB_ACTIONS_USER"
-db_provisioner_role          = "PLATFORM_DB_OWNER"
-warehouse_provisioner_role   = "WAREHOUSE_ADMIN"
-data_object_provisioner_role = "DATA_OBJECT_ADMIN"
-snowflake_warehouse          = "UTIL_WH"
-enable_seed_data             = true
+```sql
+-- ============================================================================
+-- Analyst Role — Read-Only Access
+-- ============================================================================
+
+CREATE ROLE IF NOT EXISTS NORTHBRIDGE_ANALYST
+  COMMENT = 'Read-only access to GOLD schema tables, views, and UDFs';
+
+GRANT ROLE NORTHBRIDGE_ANALYST TO ROLE SYSADMIN;
+
+-- Warehouse access
+GRANT USAGE ON WAREHOUSE STREAMLIT_WH TO ROLE NORTHBRIDGE_ANALYST;
+
+-- Database and schema access
+GRANT USAGE ON DATABASE NORTHBRIDGE_DATABASE                TO ROLE NORTHBRIDGE_ANALYST;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.GOLD           TO ROLE NORTHBRIDGE_ANALYST;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.STREAMLIT      TO ROLE NORTHBRIDGE_ANALYST;
+
+-- Current and future object grants
+GRANT SELECT ON ALL TABLES  IN SCHEMA NORTHBRIDGE_DATABASE.GOLD      TO ROLE NORTHBRIDGE_ANALYST;
+GRANT SELECT ON ALL VIEWS   IN SCHEMA NORTHBRIDGE_DATABASE.GOLD      TO ROLE NORTHBRIDGE_ANALYST;
+GRANT USAGE  ON ALL FUNCTIONS IN SCHEMA NORTHBRIDGE_DATABASE.GOLD    TO ROLE NORTHBRIDGE_ANALYST;
+
+GRANT SELECT ON FUTURE TABLES   IN SCHEMA NORTHBRIDGE_DATABASE.GOLD  TO ROLE NORTHBRIDGE_ANALYST;
+GRANT SELECT ON FUTURE VIEWS    IN SCHEMA NORTHBRIDGE_DATABASE.GOLD  TO ROLE NORTHBRIDGE_ANALYST;
+GRANT USAGE  ON FUTURE FUNCTIONS IN SCHEMA NORTHBRIDGE_DATABASE.GOLD TO ROLE NORTHBRIDGE_ANALYST;
+
+-- Grant to analyst users
+GRANT ROLE NORTHBRIDGE_ANALYST TO USER <ANALYST_USERNAME>;
 ```
 
-### 4. Deploy Infrastructure
+#### 2c. Post-database grants (run after `terraform apply` Phase 2)
+
+After Terraform Phase 2 creates the database and schemas, run these grants as `ACCOUNTADMIN` to give the provisioner roles the schema-scoped privileges they need to build downstream objects:
+
+```sql
+USE ROLE ACCOUNTADMIN;
+
+-- ----------------------------------------------------------------------------
+-- DATA_OBJECT_PROVISIONER — table / file format / dynamic table creation
+-- ----------------------------------------------------------------------------
+GRANT USAGE ON DATABASE NORTHBRIDGE_DATABASE                           TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.BRONZE                    TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.SILVER                    TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.GOLD                      TO ROLE DATA_OBJECT_PROVISIONER;
+
+GRANT CREATE FILE FORMAT   ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE       TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE TABLE         ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE       TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE DYNAMIC TABLE ON SCHEMA NORTHBRIDGE_DATABASE.SILVER       TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE TABLE         ON SCHEMA NORTHBRIDGE_DATABASE.GOLD         TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE VIEW          ON SCHEMA NORTHBRIDGE_DATABASE.GOLD         TO ROLE DATA_OBJECT_PROVISIONER;
+GRANT CREATE FUNCTION      ON SCHEMA NORTHBRIDGE_DATABASE.GOLD         TO ROLE DATA_OBJECT_PROVISIONER;
+
+-- ----------------------------------------------------------------------------
+-- INGEST_OBJECT_PROVISIONER — stage / pipe creation (integrations already granted in 2a)
+-- ----------------------------------------------------------------------------
+GRANT USAGE ON DATABASE NORTHBRIDGE_DATABASE                           TO ROLE INGEST_OBJECT_PROVISIONER;
+GRANT USAGE ON SCHEMA   NORTHBRIDGE_DATABASE.BRONZE                    TO ROLE INGEST_OBJECT_PROVISIONER;
+
+GRANT CREATE STAGE ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE               TO ROLE INGEST_OBJECT_PROVISIONER;
+GRANT CREATE PIPE  ON SCHEMA NORTHBRIDGE_DATABASE.BRONZE               TO ROLE INGEST_OBJECT_PROVISIONER;
+
+-- INGEST_OBJECT_PROVISIONER also needs SELECT on the target table so COPY INTO works via Snowpipe
+GRANT USAGE  ON FUTURE TABLES IN SCHEMA NORTHBRIDGE_DATABASE.BRONZE    TO ROLE INGEST_OBJECT_PROVISIONER;
+GRANT INSERT ON FUTURE TABLES IN SCHEMA NORTHBRIDGE_DATABASE.BRONZE    TO ROLE INGEST_OBJECT_PROVISIONER;
+```
+
+To verify the keypair was assigned correctly:
+
+```sql
+DESC USER GITHUB_ACTIONS_USER;
+-- Look for RSA_PUBLIC_KEY_FP — should show SHA256:...
+```
+
+To rotate the key later:
+
+```sql
+ALTER USER GITHUB_ACTIONS_USER SET RSA_PUBLIC_KEY = '<new public key body>';
+```
+
+---
+
+### 3. Configure HCP Terraform Variable Sets
+
+Variables are split between HCP Variable Sets (secrets and account-level values shared across all environments) and per-environment `.tfvars` files (non-sensitive values that vary per environment).
+
+#### 3a. Snowflake credentials variable set
+
+In HCP Terraform: **Organization Settings → Variable sets → Create variable set**
+
+- Name: `SNOWFLAKE_CREDENTIALS`
+- Scope: Apply to all projects and workspaces
+
+| Variable | Category | HCL | Sensitive | How to obtain |
+| --- | --- | --- | --- | --- |
+| `snowflake_private_key` | Terraform | No | ✅ Yes | `base64 -i infra/platform/keypair/snowflake_key.p8 \| tr -d '\n'` |
+| `TF_VAR_snowflake_organization_name` | Environment | N/A | No | `SELECT CURRENT_ORGANIZATION_NAME();` in Snowflake |
+| `TF_VAR_snowflake_account_name` | Environment | N/A | No | `SELECT CURRENT_ACCOUNT_NAME();` in Snowflake |
+| `TF_VAR_snowflake_user` | Environment | N/A | No | `GITHUB_ACTIONS_USER` |
+
+> **Important:**
+>
+> - For `snowflake_private_key` — set Category = **Terraform**, HCL = **unchecked**, Sensitive = **checked**. The value is the base64-encoded entire `.p8` file including PEM headers. The Terraform provider decodes it with `base64decode()` at runtime.
+> - For the three `TF_VAR_*` variables — set Category = **Environment**. HCP injects them as OS env vars and Terraform picks them up automatically.
+> - Do **not** create `SNOWFLAKE_PRIVATE_KEY` as an environment variable — HCP strips newlines from env vars, breaking the PEM format.
+> - When copying the base64 value, do **not** include any trailing `%` shown by your shell.
+
+#### 3b. AWS credentials variable set
+
+Create a second variable set named `AWS_VARIABLE_SET` (applied to all projects and workspaces):
+
+| Variable | Category | Sensitive | Value |
+| --- | --- | --- | --- |
+| `AWS_ACCESS_KEY_ID` | Environment | No | Access key of the deployer IAM user |
+| `AWS_SECRET_ACCESS_KEY` | Environment | ✅ Yes | Secret key of the deployer IAM user |
+
+#### 3c. Per-environment `.tfvars` files
+
+These live in `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars` and are committed to version control. They vary per environment:
+
+| Variable | Description | Example (devl) |
+| --- | --- | --- |
+| `db_provisioner_role` | Role for database/schema ops | `PLATFORM_DB_OWNER` |
+| `warehouse_provisioner_role` | Role for warehouse ops | `WAREHOUSE_ADMIN` |
+| `data_object_provisioner_role` | Role for table/file format ops | `DATA_OBJECT_ADMIN` |
+| `ingest_object_provisioner_role` | Role for stage/pipe ops | `INGEST_ADMIN` |
+| `snowflake_warehouse` | Default warehouse for Terraform ops | `UTIL_WH` |
+| `aws_config_path` | Path to AWS config JSON | `input-jsons/aws/devl/config.json` |
+| `snowflake_config_path` | Path to Snowflake config JSON | `input-jsons/snowflake/devl/config.json` |
+| `project_code` | Short prefix for resource naming | `cust360sf` |
+
+---
+
+### 4. Configure Local Terraform Variables
+
+For local development, copy the environment tfvars and export Snowflake connection variables:
 
 ```bash
-cd infra/snowflake/tf
-terraform init
-terraform plan
-terraform apply
+cd infra/platform/tf
+cp environments/devl/terraform.tfvars terraform.tfvars
+
+# Export Snowflake connection variables (these come from the HCP Variable Set in CI)
+export SNOWFLAKE_PRIVATE_KEY="$(cat ../../keypair/snowflake_key.p8)"
+export TF_VAR_snowflake_organization_name="YOUR_ORG"
+export TF_VAR_snowflake_account_name="YOUR_ACCOUNT"
+export TF_VAR_snowflake_user="GITHUB_ACTIONS_USER"
 ```
 
-## HRMS Database Schema
+---
 
-The tutorial uses an HRMS (Human Resource Management System) database with the following tables:
+### 5. Deploy Infrastructure
 
-| Table | Description |
-|-------|-------------|
-| EMPLOYEES | Employee information (ID, name, email, salary, etc.) |
-| DEPARTMENTS | Department details (ID, name, manager, location) |
-| LOCATIONS | Office locations |
-| COUNTRIES | Country reference data |
-| REGIONS | Geographic regions |
-| JOBS | Job titles and salary ranges |
-| JOB_HISTORY | Employee job history |
+Infrastructure is deployed in three passes due to the IAM trust policy bootstrap requirement.
 
-## Key Learnings
+```bash
+cd infra/platform/tf
+terraform init
+terraform validate
+terraform fmt -recursive
 
-1. **TARGET_LAG** controls how stale the data can be before refresh
-2. **INITIALIZE = ON_CREATE** populates immediately; **ON_SCHEDULE** waits for first scheduled refresh
-3. **TARGET_LAG = DOWNSTREAM** requires manual refresh - useful for controlled updates
-4. **REFRESH_MODE = AUTO** is recommended - tries INCREMENTAL first, falls back to FULL
-5. Dynamic tables cannot be directly TRUNCATED or UPDATED - data comes only from base tables
-6. Use **SUSPEND/RESUME** during maintenance on base tables
+# Pass 1 — Create all resources with placeholder IAM trust policy
+terraform apply -var-file="terraform.tfvars" -var="enable_trust_policy_update=false"
+```
+
+After Pass 1, retrieve the Snowflake storage integration values:
+
+```sql
+DESC INTEGRATION S3_STORAGE_INTEGRATION;
+-- Copy STORAGE_AWS_IAM_USER_ARN  → trust.snowflake_principal_arn in aws/config.json
+-- Copy STORAGE_AWS_EXTERNAL_ID   → trust.snowflake_external_id   in aws/config.json
+```
+
+Update `input-jsons/aws/config.json` with these values, then:
+
+```bash
+# Pass 2 — Update IAM trust policy with real Snowflake values
+terraform apply -var-file="terraform.tfvars" -var="enable_trust_policy_update=true"
+
+# Verify storage integration is working
+# Run in Snowflake: SELECT SYSTEM$VALIDATE_STORAGE_INTEGRATION('S3_STORAGE_INTEGRATION');
+
+# Pass 3 — Enable Snowpipe auto-ingest
+terraform apply -var-file="terraform.tfvars" -var="enable_snowpipe_creation=true"
+```
+
+---
+
+### 6. Upload Source Data
+
+```bash
+aws s3 cp data/ s3://northbridge-raw-data/raw-data/json/ --recursive --include "*.json"
+```
+
+Snowpipe (`RAW_NORTHBRIDGE_PIPE`) auto-ingests files into `BRONZE.RAW_NORTHBRIDGE` within seconds of upload via S3 event notification → SQS.
+
+---
+
+### 7. Verify the Pipeline
+
+```sql
+-- BRONZE: check raw ingestion
+SELECT COUNT(*) FROM NORTHBRIDGE_DATABASE.BRONZE.RAW_NORTHBRIDGE;
+-- Expected: 25,000
+
+-- SILVER: check dynamic table refresh
+SELECT COUNT(*) FROM NORTHBRIDGE_DATABASE.SILVER.CLEAN_NORTHBRIDGE_DT;
+
+-- GOLD: check fact table population
+SELECT COUNT(*) FROM NORTHBRIDGE_DATABASE.GOLD.FACT_TRANSACTIONS;
+-- Expected: ~312,000
+
+-- Check Snowpipe status
+SELECT SYSTEM$PIPE_STATUS('NORTHBRIDGE_DATABASE.BRONZE.RAW_NORTHBRIDGE_PIPE');
+```
+
+---
+
+### 8. Deploy the Streamlit Dashboard
+
+Upload `app/northbridge_dashboard.py` via the Snowflake console:
+
+**Projects → Streamlit → + Streamlit App** → select `STREAMLIT_WH` and schema `NORTHBRIDGE_DATABASE.STREAMLIT`
+
+---
+
+## Snowflake Objects
+
+### Roles
+
+| Role | Privilege | Used by |
+| --- | --- | --- |
+| `DB_PROVISIONER` | `CREATE DATABASE` on account | `module.database_schemas` |
+| `WAREHOUSE_PROVISIONER` | `CREATE WAREHOUSE`, `MONITOR USAGE` on account | `module.warehouse` |
+| `DATA_OBJECT_PROVISIONER` | `CREATE TABLE`, `CREATE FILE FORMAT`, `CREATE DYNAMIC TABLE`, `CREATE VIEW`, `CREATE FUNCTION` on schemas | `module.table`, `module.file_formats`, `module.dynamic_table` |
+| `INGEST_OBJECT_PROVISIONER` | `CREATE INTEGRATION` on account; `CREATE STAGE`, `CREATE PIPE` on schemas | `module.storage_integrations`, `module.stage`, `module.pipe` |
+| `NORTHBRIDGE_ANALYST` | `SELECT` on GOLD tables/views; `USAGE` on GOLD functions | Dashboard users |
+
+### Warehouses
+
+| Name | Size | Purpose |
+| --- | --- | --- |
+| `LOAD_WH` | MEDIUM | Snowpipe ingestion + COPY operations |
+| `TRANSFORM_WH` | X-SMALL | Stream tasks, BRONZE → SILVER → GOLD |
+| `STREAMLIT_WH` | X-SMALL | Dashboard queries |
+| `ADHOC_WH` | X-SMALL | Development + ad-hoc debugging |
+
+All warehouses: `auto_resume = true`, `auto_suspend = 60s`, `initially_suspended = true`.
+
+### Schemas
+
+| Schema | Layer | Purpose |
+| --- | --- | --- |
+| `BRONZE` | Raw | Landing zone — VARIANT JSON, audit columns |
+| `SILVER` | Cleansed | Typed, deduplicated, validated dynamic table |
+| `GOLD` | Curated | Fact & dimension tables, analytical views, UDFs |
+| `STREAMLIT` | Serving | Presentation layer for dashboard |
+
+---
+
+## Streamlit Dashboard
+
+Five tabs backed by `GOLD` views, with sidebar filters for Customer Segment, Risk Rating, and Region.
+
+| Tab | Key visuals |
+| --- | --- |
+| Executive KPIs | AUM, NPL ratio, avg credit score, AUM treemap by region |
+| Customer Insights | Income & credit score distributions, segment and employment mix |
+| Loan Portfolio | Loan book by type, status distribution, rate vs amount scatter |
+| Transactions | Monthly volume trend, channel mix, failed transaction trend |
+| Risk & Compliance | KYC status, AML exposure, credit tier vs risk heatmap |
+
+---
+
+## Dataset
+
+| Metric | Value |
+| --- | --- |
+| Customers | 25,000 |
+| Total nested records | ~495,000 |
+| Accounts | ~75,000 |
+| Loans | ~35,000 |
+| Transactions | ~312,000 |
+| JSON schema version | 3.0 |
+| Transaction date range | 2022–2024 |
+| Total file size | ~329 MB (5 × ~66 MB parts) |
+
+Each customer record contains 9 nested objects: `accounts[]`, `loans[]`, `credit_cards[]`, `transactions[]`, `alerts[]`, `digital_profile{}`, `compliance{}`, `financial_summary{}`, `employment{}`.
+
+To regenerate the synthetic dataset (deterministic, seed `2025`):
+
+```bash
+python3 scripts/gen_large.py
+```
+
+---
+
+## Domain Glossary
+
+| Term | Definition |
+| --- | --- |
+| AUM | Assets Under Management — total deposit balances |
+| NPL Ratio | Non-Performing Loan ratio — at-risk loan value / total loan book |
+| KYC | Know Your Customer — `Verified`, `Pending`, `Flagged`, `Expired` |
+| AML | Anti-Money Laundering — risk score 0–100 |
+| PEP | Politically Exposed Person |
+| EMI | Equated Monthly Instalment |
+| At-Risk Loan | Loan with status `Defaulted` or `Delinquent` |
+| SiS | Streamlit in Snowflake |
+
+---
+
+## Teardown
+
+```bash
+cd infra/platform/tf
+terraform destroy -var-file="terraform.tfvars"
+```
+
+> Ensure S3 buckets are empty before destroying. If the bucket has versioned objects, set `force_destroy: true` in `input-jsons/aws/config.json` first, then apply, then destroy.
+
+---
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
-
-## References
-
-- [Snowflake Dynamic Tables Documentation](https://docs.snowflake.com/en/user-guide/dynamic-tables)
-- [Snowflake Master Class for Data Engineers - Udemy](https://www.udemy.com/)
+MIT

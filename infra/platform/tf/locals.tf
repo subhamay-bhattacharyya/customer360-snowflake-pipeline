@@ -3,8 +3,11 @@
 # Local Values
 # ============================================================================
 
-# data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
+
+# Captures the timestamp once at first apply; value is stored in state and
+# never changes on subsequent applies. Used for the immutable Created tag.
+resource "time_static" "created" {}
 
 # Compute KMS key alias first (no dependency on s3_config)
 locals {
@@ -18,7 +21,23 @@ data "aws_kms_key" "kms" {
 }
 
 locals {
-  # current_region = data.aws_region.current.id
+  # ============================================================================
+  # Default tags (applied to every AWS resource via provider default_tags)
+  # ============================================================================
+  default_tags = {
+    Project            = var.project_code
+    Environment        = var.environment
+    ManagedBy          = "Terraform"
+    Repository         = var.repository != "" ? var.repository : null
+    Component          = var.component
+    Owner              = var.owner
+    CostCenter         = var.cost_center
+    DataClassification = var.data_classification
+    GitRef             = var.git_ref
+    GitCommitSHA       = var.git_commit_sha
+    Created            = formatdate("YYYY-MM-DD hh:mm:ss", time_static.created.rfc3339)
+    LastModified       = formatdate("YYYY-MM-DD hh:mm:ss", timestamp())
+  }
 
   # Parse config from JSON files (relative to module path)
   aws_config_file       = jsondecode(file("${path.module}/${var.aws_config_path}"))

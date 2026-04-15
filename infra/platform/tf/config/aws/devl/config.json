@@ -1,0 +1,73 @@
+{
+  "aws": {
+    "region": "us-east-1",
+    "s3": {
+      "bucket_name": "northbridge-raw-data",
+      "bucket_keys": [
+        "raw-data/json"
+      ],
+      "versioning": true,
+      "kms_key_alias": "SB-KMS",
+      "force_destroy": false,
+      "lifecycle_rules": [
+        {
+          "id": "expire-raw-json-90-days",
+          "enabled": true,
+          "prefix": "raw-data/json",
+          "expiration_days": 90
+        }
+      ]
+    },
+    "iam": {
+      "role_name": "northbridge-snowflake-role",
+      "policies": [
+        {
+          "name": "SnowflakeS3ListBucketPolicy",
+          "sid": "SnowflakeS3ListBucket",
+          "effect": "Allow",
+          "action": [
+            "s3:ListBucket",
+            "s3:GetBucketLocation"
+          ],
+          "resource": "s3-bucket-arn"
+        },
+        {
+          "name": "SnowflakeS3ObjectAccessPolicy",
+          "sid": "SnowflakeS3ObjectAccess",
+          "effect": "Allow",
+          "action": [
+            "s3:GetObject",
+            "s3:GetObjectVersion"
+          ],
+          "resource": "s3-bucket-arn/*"
+        },
+        {
+          "name": "SnowflakeKMSAccessPolicy",
+          "sid": "SnowflakeKMSAccess",
+          "effect": "Allow",
+          "action": [
+            "kms:Decrypt",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          "resource": "kms-key-arn"
+        },
+        {
+          "name": "SnowflakeSQSSendMessagePolicy",
+          "sid": "SnowflakeSQSSendMessage",
+          "effect": "Allow",
+          "action": [
+            "sqs:SendMessage",
+            "sqs:GetQueueUrl",
+            "sqs:GetQueueAttributes"
+          ],
+          "resource": "sqs-queue-arn"
+        }
+      ]
+    }
+  },
+  "trust": {
+    "snowflake_principal_arn": "arn:aws:iam::837042614963:user/mrzh1000-s",
+    "snowflake_external_id": "MJC25791_SFCRole=361_8PXftmxnobxv7J1iDYcL6ZWk8+0="
+  }
+}

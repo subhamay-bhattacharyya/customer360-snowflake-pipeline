@@ -1,0 +1,58 @@
+{
+  "aws": {
+    "region": "us-east-1",
+    "s3": {
+      "bucket_name": "cust360-sf-pipeline",
+      "bucket_keys": [
+        "raw-data/csv",
+        "raw-data/json"
+      ],
+      "versioning": true,
+      "kms_key_alias": "SB-KMS"
+    },
+    "iam": {
+      "role_name": "snowflake-external-stage-role",
+      "policies": [
+        {
+          "name": "SnowflakeS3ListBucketPolicy",
+          "action": [
+            "s3:ListBucket",
+            "s3:GetBucketLocation"
+          ],
+          "effect": "Allow",
+          "resource": "s3-bucket-arn",
+          "sid": "SnowflakeS3ListBucket"
+        },
+        {
+          "name": "SnowflakeS3ObjectAccessPolicy",
+          "action": [
+            "s3:GetObject",
+            "s3:GetObjectVersion",
+            "s3:PutObject",
+            "s3:DeleteObject"
+          ],
+          "effect": "Allow",
+          "resource": "s3-bucket-arn/*",
+          "sid": "SnowflakeS3ObjectAccess"
+        },
+        {
+          "name": "SnowflakeKMSAccessPolicy",
+          "action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          "effect": "Allow",
+          "resource": "kms-key-arn",
+          "sid": "SnowflakeKMSAccess"
+        }
+      ]
+    }
+  },
+  "trust": {
+    "snowflake_principal_arn": "arn:aws:iam::837042614963:user/mrzh1000-s",
+    "snowflake_external_id": "MJC25791_SFCRole=361_8PXftmxnobxv7J1iDYcL6ZWk8+0="
+  }
+}

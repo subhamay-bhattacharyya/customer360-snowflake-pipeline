@@ -8,18 +8,18 @@ on:
       - 'feature/**'
       - 'bug/**'
     paths:
-      - infra/snowflake/tf/**
-      - input-jsons/**
+      - infra/platform/tf/**
+      - .github/workflows/ci.yaml
   pull_request:
     branches: [main]
     paths:
-      - infra/snowflake/tf/**
-      - input-jsons/**
+      - infra/platform/tf/**
   workflow_dispatch:
 
 permissions:
   contents: write
   id-token: write
+  security-events: write
 
 jobs:
   # ============================================================================
@@ -28,12 +28,12 @@ jobs:
 
   ci:
     name: CI
-    uses: subhamay-bhattacharyya-gha/tf-ci-reusable-wf/.github/workflows/ci.yaml@feature/GHA-0043-featci-add-checkov-securi
+    uses: subhamay-bhattacharyya-gha/tf-ci-reusable-wf/.github/workflows/ci.yaml@main
     with:
-      cloud-provider: snowflake
+      cloud-provider: platform
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
-      tf-vars-file: tfvar/${{ github.event.inputs.environment }}/terraform.tfvars
+      tf-vars-file: environments/devl/terraform.tfvars
       # aws-region: ${{ vars.AWS_REGION }}
       snowflake-user: ${{ vars.SNOWFLAKE_USER }}
       # snowflake-organization-name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
@@ -74,6 +74,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
           git diff --staged --quiet || git commit -m "docs: update CHANGELOG.md [skip ci]"
+          git pull --rebase
           git push
 
   # ============================================================================
