@@ -18,4 +18,9 @@ snowflake_config_path = "config/snowflake/prod/config.json"
 # Project Configuration
 # AWS(AWS) - Snowflake (SF) - End to End (E2E)
 # ----------------------------------------------------------------------------
-project_code = "cust360"
+project_code        = "cust360"
+cost_center         = "0709"
+environment         = "prod"
+data_classification = "confidential"
+component           = "platform"
+owner               = "Subhamay Bhattacharyya"
