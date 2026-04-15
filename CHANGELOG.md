@@ -58,6 +58,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
 
 ### Features
 
@@ -93,6 +94,8 @@ All notable changes to this project will be documented in this file.
 - Enhance README and Terraform configurations with provisioner roles and tagging metadata
 - Add new variables for project configuration and update resource timestamps
 - Update Terraform variable files with additional project metadata and configuration
+- Implemen phase 1,  2 and 3
+- Implement Snowpipes and Dynamic Tables outputs in Phase 4 and 5
 
 ### Miscellaneous Tasks
 
