@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - Change authenticator from SNOWFLAKE_JWT to JWT
 - Remove explicit authenticator, let provider auto-detect from private_key
 - Restore authenticator = SNOWFLAKE_JWT to prevent password auth fallback
+- Update CI workflow reference to use main branch
 
 ### Documentation
 
@@ -41,6 +42,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update HCP variable set instructions with working configuration
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
