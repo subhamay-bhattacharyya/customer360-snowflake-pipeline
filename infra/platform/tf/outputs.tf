@@ -127,17 +127,17 @@ output "tables" {
 }
 
 # ----------------------------------------------------------------------------
-# 7. Snowpipes — DISABLED for first iteration (Phase 4)
+# 7. Snowpipes
 # ----------------------------------------------------------------------------
-# output "snowpipes" {
-#   description = "Map of snowpipe names to their details"
-#   value       = module.pipe.pipes
-# }
+output "snowpipes" {
+  description = "Map of snowpipe names to their details"
+  value       = module.pipe.pipes
+}
 
 # ----------------------------------------------------------------------------
-# 8. Dynamic tables — DISABLED for first iteration (Phase 5)
+# 8. Dynamic tables
 # ----------------------------------------------------------------------------
-# output "dynamic_tables" {
-#   description = "Map of dynamic tables to their details"
-#   value       = module.dynamic_table
-# }
+output "dynamic_tables" {
+  description = "Map of dynamic tables to their details"
+  value       = module.dynamic_table
+}
