@@ -2,51 +2,66 @@
   "aws": {
     "region": "us-east-1",
     "s3": {
-      "bucket_name": "cust360-sf-pipeline",
+      "bucket_name": "northbridge-raw-data",
       "bucket_keys": [
-        "raw-data/csv",
         "raw-data/json"
       ],
-      "versioning": false,
-      "kms_key_alias": "SB-KMS"
+      "versioning": true,
+      "kms_key_alias": "SB-KMS",
+      "force_destroy": false,
+      "lifecycle_rules": [
+        {
+          "id": "expire-raw-json-90-days",
+          "enabled": true,
+          "prefix": "raw-data/json",
+          "expiration_days": 90
+        }
+      ]
     },
     "iam": {
-      "role_name": "snowflake-external-stage-role",
+      "role_name": "northbridge-snowflake-role",
       "policies": [
         {
           "name": "SnowflakeS3ListBucketPolicy",
+          "sid": "SnowflakeS3ListBucket",
+          "effect": "Allow",
           "action": [
             "s3:ListBucket",
             "s3:GetBucketLocation"
           ],
-          "effect": "Allow",
-          "resource": "s3-bucket-arn",
-          "sid": "SnowflakeS3ListBucket"
+          "resource": "s3-bucket-arn"
         },
         {
           "name": "SnowflakeS3ObjectAccessPolicy",
+          "sid": "SnowflakeS3ObjectAccess",
+          "effect": "Allow",
           "action": [
             "s3:GetObject",
-            "s3:GetObjectVersion",
-            "s3:PutObject",
-            "s3:DeleteObject"
+            "s3:GetObjectVersion"
           ],
-          "effect": "Allow",
-          "resource": "s3-bucket-arn/*",
-          "sid": "SnowflakeS3ObjectAccess"
+          "resource": "s3-bucket-arn/*"
         },
         {
           "name": "SnowflakeKMSAccessPolicy",
+          "sid": "SnowflakeKMSAccess",
+          "effect": "Allow",
           "action": [
-            "kms:Encrypt",
             "kms:Decrypt",
-            "kms:ReEncrypt*",
             "kms:GenerateDataKey*",
             "kms:DescribeKey"
           ],
+          "resource": "kms-key-arn"
+        },
+        {
+          "name": "SnowflakeSQSSendMessagePolicy",
+          "sid": "SnowflakeSQSSendMessage",
           "effect": "Allow",
-          "resource": "kms-key-arn",
-          "sid": "SnowflakeKMSAccess"
+          "action": [
+            "sqs:SendMessage",
+            "sqs:GetQueueUrl",
+            "sqs:GetQueueAttributes"
+          ],
+          "resource": "sqs-queue-arn"
         }
       ]
     }

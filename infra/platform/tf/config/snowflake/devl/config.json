@@ -4,16 +4,16 @@
       "name": "S3_STORAGE_INTEGRATION",
       "storage_provider": "S3",
       "storage_allowed_locations": [
-        "raw-data/json"
+        "/raw-data/json/"
       ],
       "enabled": true,
-      "comment": "Storage integration for S3 bucket access"
+      "comment": "S3 storage integration for NorthBridge raw data bucket"
     }
   },
   "warehouses": {
     "load_wh": {
       "name": "LOAD_WH",
-      "comment": "Dedicated ingestion warehouse for loading files from stages into Bronze tables using COPY operations and batch loads.",
+      "comment": "Snowpipe ingestion and COPY operations",
       "warehouse_size": "MEDIUM",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -26,7 +26,7 @@
     },
     "transform_wh": {
       "name": "TRANSFORM_WH",
-      "comment": "ETL/ELT warehouse for heavy SQL transformations, merges, joins, and pipeline processing from Bronze → Silver → Gold.",
+      "comment": "Stream tasks, BRONZE to SILVER to GOLD transforms",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -39,7 +39,7 @@
     },
     "streamlit_wh": {
       "name": "STREAMLIT_WH",
-      "comment": "Lightweight warehouse optimized for low-latency dashboard queries and interactive Streamlit app usage.",
+      "comment": "Dashboard queries",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -52,7 +52,7 @@
     },
     "adhoc_wh": {
       "name": "ADHOC_WH",
-      "comment": "Development and sandbox warehouse for ad-hoc queries, experimentation, troubleshooting, and testing.",
+      "comment": "Development and ad-hoc debugging",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -65,56 +65,28 @@
     }
   },
   "databases": {
-    "aqi_database": {
-      "name": "AQI_DATABASE",
-      "comment": "Central analytical database hosting ingestion, transformation, modeling, and presentation layers for the AQI platform.",
+    "northbridge_database": {
+      "name": "NORTHBRIDGE_DATABASE",
+      "comment": "Central analytical database for the NorthBridge Customer 360 pipeline",
       "schemas": [
         {
           "name": "BRONZE",
-          "comment": "Raw - Landing zone for raw source data (JSON/CSV/Parquet). Minimal transformations. Supports replay and auditing.",
-          "stages": {
-            "raw_external_stg": {
-              "name": "RAW_EXTERNAL_STG",
-              "stage_type": "external",
-              "file_format": "JSON",
-              "url": "s3://the-s3-bucket/raw-data/json/",
-              "comment": "External stage for storing incoming AQI raw files before COPY ingestion."
-            },
-            "raw_internal_stg": {
-              "name": "RAW_INTERNAL_STG",
-              "stage_type": "internal",
-              "file_format": "JSON",
-              "directory_enabled": true,
-              "comment": "Internal stage for temporary file storage and processing."
-            }
-          },
-          "file_formats": {
-            "json_file_format": {
-              "name": "JSON_FILE_FORMAT",
-              "type": "JSON",
-              "compression": "AUTO",
-              "enable_octal": false,
-              "allow_duplicate": false,
-              "strip_outer_array": false,
-              "strip_null_values": false,
-              "ignore_utf8_errors": false,
-              "comment": "JSON parsing configuration for raw ingestion."
-            }
-          },
+          "comment": "Raw ingestion layer",
           "tables": {
-            "raw_aqi": {
-              "database": "AQI_DATABASE",
+            "raw_northbridge": {
+              "database": "NORTHBRIDGE_DATABASE",
               "schema": "BRONZE",
-              "name": "RAW_AQI",
+              "name": "RAW_NORTHBRIDGE",
               "table_type": "TRANSIENT",
               "drop_before_create": true,
-              "comment": "Raw ingestion table storing AQI payloads as VARIANT with metadata columns.",
+              "data_retention_time_in_days": 1,
+              "comment": "Raw ingestion table — VARIANT payload + audit columns",
               "columns": [
                 {
                   "name": "ID",
                   "type": "NUMBER(38,0)",
                   "nullable": false,
-                  "comment": "Primary key with autoincrement",
+                  "comment": "Surrogate PK",
                   "autoincrement": {
                     "start": 1,
                     "increment": 1,
@@ -125,49 +97,47 @@
                   "name": "INDEX_RECORD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": false,
-                  "comment": "Timestamp of the AQI index record"
+                  "comment": "Record timestamp from source"
                 },
                 {
                   "name": "JSON_DATA",
                   "type": "VARIANT",
                   "nullable": false,
-                  "comment": "Raw JSON payload from AQI source"
+                  "comment": "Raw JSON payload"
                 },
                 {
                   "name": "RECORD_COUNT",
                   "type": "NUMBER(38,0)",
-                  "nullable": false,
-                  "comment": "Number of records in the JSON payload"
+                  "nullable": false
                 },
                 {
                   "name": "JSON_VERSION",
                   "type": "VARCHAR(255)",
-                  "nullable": false,
-                  "comment": "Version of the JSON schema"
+                  "nullable": false
                 },
                 {
                   "name": "_STG_FILE_NAME",
                   "type": "VARCHAR(500)",
                   "nullable": true,
-                  "comment": "Audit - Source stage file name"
+                  "comment": "Audit — source stage file name"
                 },
                 {
                   "name": "_STG_FILE_LOAD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit - Stage file load timestamp"
+                  "comment": "Audit — stage load timestamp"
                 },
                 {
                   "name": "_STG_FILE_MD5",
                   "type": "VARCHAR(32)",
                   "nullable": true,
-                  "comment": "Audit - MD5 hash of the stage file"
+                  "comment": "Audit — MD5 hash of stage file"
                 },
                 {
                   "name": "_COPY_DATA_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit - Timestamp when data was copied"
+                  "comment": "Audit — COPY INTO execution timestamp"
                 }
               ],
               "primary_key": {
@@ -177,80 +147,194 @@
               }
             }
           },
+          "file_formats": {
+            "json_file_format": {
+              "name": "JSON_FILE_FORMAT",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "type": "JSON",
+              "compression": "AUTO",
+              "enable_octal": false,
+              "allow_duplicate": false,
+              "strip_outer_array": false,
+              "strip_null_values": false,
+              "ignore_utf8_errors": false,
+              "comment": "JSON parsing config for NorthBridge raw ingestion"
+            }
+          },
+          "stages": {
+            "raw_external_stg": {
+              "name": "RAW_EXTERNAL_STG",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "stage_type": "external",
+              "url": "s3://northbridge-raw-data/raw-data/json/",
+              "storage_integration": "S3_STORAGE_INTEGRATION",
+              "file_format": "JSON_FILE_FORMAT",
+              "comment": "External S3 stage for NorthBridge raw JSON ingestion"
+            },
+            "raw_internal_stg": {
+              "name": "RAW_INTERNAL_STG",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "stage_type": "internal",
+              "file_format": "JSON_FILE_FORMAT",
+              "directory_enabled": true,
+              "comment": "Internal stage for temporary file processing"
+            }
+          },
           "streams": {
-            "raw_aqi_stream": {
-              "name": "RAW_AQI_STREAM",
-              "source": "RAW_AQI",
-              "comment": "Captures incremental inserts/updates to trigger downstream task execution."
+            "raw_northbridge_stream": {
+              "name": "RAW_NORTHBRIDGE_STREAM",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "source": "RAW_NORTHBRIDGE",
+              "append_only": true,
+              "comment": "Captures incremental inserts to trigger downstream task"
             }
           },
           "tasks": {
-            "copy_air_quality_data": {
-              "name": "COPY_AIR_QUALITY_DATA",
+            "copy_banking_data": {
+              "name": "COPY_BANKING_DATA",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
               "warehouse": "LOAD_WH",
-              "comment": "Scheduled COPY INTO from stage to bronze table."
+              "schedule": "5 MINUTE",
+              "sql_template_file": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
+              "comment": "Scheduled COPY INTO from external stage to BRONZE table"
             },
-            "process_aqi_stream_task": {
-              "name": "PROCESS_AQI_STREAM_TASK",
+            "process_northbridge_stream_task": {
+              "name": "PROCESS_NORTHBRIDGE_STREAM_TASK",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
               "warehouse": "TRANSFORM_WH",
-              "comment": "Triggered by stream changes; runs transformations bronze → silver → gold."
+              "stream_trigger": "RAW_NORTHBRIDGE_STREAM",
+              "sql_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
+              "comment": "Stream-triggered task — BRONZE to SILVER to GOLD transforms"
             },
-            "refresh_weather_data_task": {
-              "name": "REFRESH_WEATHER_DATA_TASK",
+            "refresh_customer_data_task": {
+              "name": "REFRESH_CUSTOMER_DATA_TASK",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
               "warehouse": "TRANSFORM_WH",
-              "comment": "Periodic enrichment refresh task."
+              "schedule": "60 MINUTE",
+              "comment": "Periodic enrichment of customer data"
             }
           },
           "snowpipes": {
-            "raw_aqi_pipe": {
-              "name": "RAW_AQI_PIPE",
-              "copy_template": "raw_northbridge_copy.tpl",
-              "table": "RAW_AQI",
+            "raw_northbridge_pipe": {
+              "name": "RAW_NORTHBRIDGE_PIPE",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "BRONZE",
+              "table": "RAW_NORTHBRIDGE",
               "stage": "RAW_EXTERNAL_STG",
               "file_format": "JSON_FILE_FORMAT",
+              "copy_template": "raw_northbridge_copy.tpl",
               "auto_ingest": true,
-              "comment": "Auto-ingest pipe for raw AQI JSON data from S3"
+              "filter_suffix": ".json",
+              "comment": "Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
             }
           }
         },
         {
           "name": "SILVER",
-          "comment": "Cleansed - Standardized, deduplicated, and validated datasets ready for transformation.",
+          "comment": "Cleansed and typed data layer",
           "dynamic_tables": {
-            "clean_aqi_dt": {
-              "name": "CLEAN_AQI_DT",
+            "clean_northbridge_dt": {
+              "name": "CLEAN_NORTHBRIDGE_DT",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "SILVER",
+              "warehouse": "LOAD_WH",
               "target_lag": "downstream",
+              "refresh_mode": "AUTO",
+              "initialize": "ON_CREATE",
               "query_template_file": "clean_northbridge.tpl",
-              "warehouse": "load_wh",
-              "source_schema": "BRONZE",
-              "source_table": "RAW_AQI",
-              "comment": "Cleansed and validated AQI dataset auto-refreshed from bronze."
+              "comment": "Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
             }
           }
         },
         {
           "name": "GOLD",
-          "comment": "Curated - Business-ready facts/dimensions and aggregated models optimized for analytics and BI.",
-          "tables": {},
-          "dynamic_tables": {},
+          "comment": "Modelled data layer for analytics and dashboards",
           "functions": {
             "prominent_index": {
               "name": "PROMINENT_INDEX",
-              "comment": "Returns dominant pollutant index."
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "language": "JAVASCRIPT",
+              "return_type": "VARCHAR",
+              "arguments": [
+                {
+                  "name": "credit_score",
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "risk_rating",
+                  "type": "VARCHAR"
+                }
+              ],
+              "body_template_file": "templates/functions/prominent_index.tpl",
+              "comment": "Returns the dominant customer risk index",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "USAGE"
+                  ]
+                }
+              ]
             },
             "three_sub_index_criteria": {
               "name": "THREE_SUB_INDEX_CRITERIA",
-              "comment": "AQI evaluation logic."
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "language": "SQL",
+              "return_type": "BOOLEAN",
+              "arguments": [
+                {
+                  "name": "income_tier",
+                  "type": "VARCHAR"
+                },
+                {
+                  "name": "credit_tier",
+                  "type": "VARCHAR"
+                },
+                {
+                  "name": "kyc_status",
+                  "type": "VARCHAR"
+                }
+              ],
+              "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
+              "comment": "Customer scoring evaluation logic — returns true if 3 sub-criteria met"
             },
             "get_int": {
               "name": "GET_INT",
-              "comment": "Helper conversion utility."
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "language": "SQL",
+              "return_type": "NUMBER",
+              "arguments": [
+                {
+                  "name": "val",
+                  "type": "VARIANT"
+                }
+              ],
+              "body": "SELECT val::NUMBER",
+              "comment": "Helper — safely casts VARIANT to NUMBER"
             }
           }
         },
         {
           "name": "STREAMLIT",
-          "comment": "Serving - Presentation layer optimized for dashboards, apps, and interactive workloads."
+          "comment": "Dashboard scripts for Streamlit in Snowflake"
         }
       ]
     }

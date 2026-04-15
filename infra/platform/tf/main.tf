@@ -192,67 +192,70 @@ module "aws_iam_role_final" {
 
 
 # ============================================================================
-# PHASE 4: Snowpipes (BRONZE layer)
+# PHASE 4: Snowpipes (BRONZE layer) — DISABLED for first iteration
+# ============================================================================
+# Uncomment after Phases 1-3 are successfully deployed and the IAM trust
+# policy has been updated with Snowflake storage integration credentials.
+# ----------------------------------------------------------------------------
+
+# # ----------------------------------------------------------------------------
+# # • 4.1 Snowpipe creation
+# # ----------------------------------------------------------------------------
+# module "pipe" {
+#   source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-pipe.git?ref=v2.1.0"
+#
+#   providers = {
+#     snowflake = snowflake.ingest_object_provisioner
+#   }
+#
+#   pipe_configs = var.enable_snowpipe_creation ? local.snowpipes : {}
+#
+#   depends_on = [
+#     module.aws_iam_role_final,
+#     module.table
+#   ]
+# }
+#
+# # ----------------------------------------------------------------------------
+# # • 4.2 S3 Event Notifications for Snowpipe Auto-Ingest
+# # ----------------------------------------------------------------------------
+# module "s3_notification" {
+#   source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-aws-s3-bucket.git//modules/event-notification?ref=v1.0.0"
+#
+#   bucket_name = local.s3_config.bucket_name
+#
+#   sqs_notifications = [
+#     for key, pipe_output in module.pipe.pipes : {
+#       id            = "${lower(replace(local.snowpipes[key].name, "_", "-"))}-notification"
+#       queue_arn     = pipe_output.notification_channel
+#       events        = ["s3:ObjectCreated:*"]
+#       filter_prefix = lookup(local.snowpipes[key], "filter_prefix", null)
+#       filter_suffix = lookup(local.snowpipes[key], "filter_suffix", null)
+#     } if lookup(local.snowpipes[key], "auto_ingest", false) == true
+#   ]
+#
+#   depends_on = [module.pipe, module.s3]
+# }
+
+# ============================================================================
+# PHASE 5: Dynamic Tables (SILVER layer) — DISABLED for first iteration
 # ============================================================================
 
-# ----------------------------------------------------------------------------
-# • 4.1 Snowpipe creation
-# ----------------------------------------------------------------------------
-module "pipe" {
-  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-pipe.git?ref=v2.1.0"
-
-  providers = {
-    snowflake = snowflake.ingest_object_provisioner
-  }
-
-  pipe_configs = var.enable_snowpipe_creation ? local.snowpipes : {}
-
-  depends_on = [
-    module.aws_iam_role_final,
-    module.table
-  ]
-}
-
-# ----------------------------------------------------------------------------
-# • 4.2 S3 Event Notifications for Snowpipe Auto-Ingest
-# ----------------------------------------------------------------------------
-module "s3_notification" {
-  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-aws-s3-bucket.git//modules/event-notification?ref=v1.0.0"
-
-  bucket_name = local.s3_config.bucket_name
-
-  sqs_notifications = [
-    for key, pipe_output in module.pipe.pipes : {
-      id            = "${lower(replace(local.snowpipes[key].name, "_", "-"))}-notification"
-      queue_arn     = pipe_output.notification_channel
-      events        = ["s3:ObjectCreated:*"]
-      filter_prefix = lookup(local.snowpipes[key], "filter_prefix", null)
-      filter_suffix = lookup(local.snowpipes[key], "filter_suffix", null)
-    } if lookup(local.snowpipes[key], "auto_ingest", false) == true
-  ]
-
-  depends_on = [module.pipe, module.s3]
-}
-
-# ============================================================================
-# PHASE 5: Dynamic Tables (SILVER layer)
-# ============================================================================
-
-# ----------------------------------------------------------------------------
-# • 5.1 Dynamic Table Module
-# ----------------------------------------------------------------------------
-module "dynamic_table" {
-  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-dynamic-table.git?ref=v1.1.0"
-
-  providers = {
-    snowflake = snowflake.data_object_provisioner
-  }
-
-  dynamic_table_configs = local.dynamic_tables
-
-  depends_on = [
-    module.database_schemas,
-    module.table,
-    module.warehouse
-  ]
-}
+# # ----------------------------------------------------------------------------
+# # • 5.1 Dynamic Table Module
+# # ----------------------------------------------------------------------------
+# module "dynamic_table" {
+#   source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-dynamic-table.git?ref=v1.1.0"
+#
+#   providers = {
+#     snowflake = snowflake.data_object_provisioner
+#   }
+#
+#   dynamic_table_configs = local.dynamic_tables
+#
+#   depends_on = [
+#     module.database_schemas,
+#     module.table,
+#     module.warehouse
+#   ]
+# }
