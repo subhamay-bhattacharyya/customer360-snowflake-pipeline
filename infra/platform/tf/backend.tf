@@ -4,9 +4,11 @@
 # ============================================================================
 
 terraform {
+  required_version = "~>1.14.0"
+
   cloud {
 
-    organization = "subhamay-aws-projects"
+    organization = "subhamay-snowflake-projects"
 
     workspaces {
       name = "customer360-snowflake-pipeline"

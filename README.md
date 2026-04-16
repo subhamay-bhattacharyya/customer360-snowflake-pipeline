@@ -193,9 +193,15 @@ openssl rsa -in snowflake_key.p8 -pubout -out snowflake_key.pub
 
 # Step 3 — Extract the public key body (strip headers and newlines) for Snowflake
 grep -v "BEGIN PUBLIC" snowflake_key.pub | grep -v "END PUBLIC" | tr -d '\n'
+
+# Step 4 — Produce the HCP Terraform value for `snowflake_private_key`
+#          (base64-encodes the ENTIRE .p8 file — do NOT strip headers/newlines)
+base64 < snowflake_key.p8 | tr -d '\n'
 ```
 
-Copy the output of Step 3 — you will need it in the next step.
+Copy the output of **Step 3** — you will paste this into the `RSA_PUBLIC_KEY` clause of `CREATE USER` in §2a.
+
+Copy the output of **Step 4** — you will paste this (a single line, no trailing newline) into the `snowflake_private_key` Terraform variable in HCP in §3a. Do **not** strip the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` markers or the internal newlines from the key before encoding — `base64` encodes the file as-is and the Terraform provider decodes it back into a valid PEM at runtime via `base64decode()` in `providers-snowflake.tf`.
 
 ---
 
@@ -401,17 +407,39 @@ In HCP Terraform: **Organization Settings → Variable sets → Create variable 
 
 | Variable | Category | HCL | Sensitive | How to obtain |
 | --- | --- | --- | --- | --- |
-| `snowflake_private_key` | Terraform | No | ✅ Yes | `base64 -i infra/platform/keypair/snowflake_key.p8 \| tr -d '\n'` |
+| `snowflake_private_key` | Terraform | No | ✅ Yes | `base64 < infra/platform/keypair/snowflake_key.p8 \| tr -d '\n'` (run from repo root; cross-platform — works on macOS and Linux) |
 | `TF_VAR_snowflake_organization_name` | Environment | N/A | No | `SELECT CURRENT_ORGANIZATION_NAME();` in Snowflake |
 | `TF_VAR_snowflake_account_name` | Environment | N/A | No | `SELECT CURRENT_ACCOUNT_NAME();` in Snowflake |
 | `TF_VAR_snowflake_user` | Environment | N/A | No | `GITHUB_ACTIONS_USER` |
 
 > **Important:**
 >
-> - For `snowflake_private_key` — set Category = **Terraform**, HCL = **unchecked**, Sensitive = **checked**. The value is the base64-encoded entire `.p8` file including PEM headers. The Terraform provider decodes it with `base64decode()` at runtime.
+> - For `snowflake_private_key` — set Category = **Terraform**, HCL = **unchecked**, Sensitive = **checked**. The value must be the base64-encoded **entire `.p8` file including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` markers and internal newlines**. The Terraform provider decodes it with `base64decode()` at runtime (see `providers-snowflake.tf:27`). Do **not** pre-strip the PEM headers or newlines — doing so yields raw DER bytes and JWT auth will fail.
 > - For the three `TF_VAR_*` variables — set Category = **Environment**. HCP injects them as OS env vars and Terraform picks them up automatically.
 > - Do **not** create `SNOWFLAKE_PRIVATE_KEY` as an environment variable — HCP strips newlines from env vars, breaking the PEM format.
 > - When copying the base64 value, do **not** include any trailing `%` shown by your shell.
+
+#### Verify the encoded private key round-trips
+
+Before saving the HCP variable, round-trip the value locally and confirm the first decoded line is the PEM header:
+
+```bash
+base64 < infra/platform/keypair/snowflake_key.p8 | tr -d '\n' | base64 -d | head -1
+# Expect exactly: -----BEGIN PRIVATE KEY-----
+```
+
+If the first line is anything else (garbled binary, or just a base64 blob), you either (a) stripped the PEM markers before encoding, (b) encoded the public key by mistake, or (c) the file is not PKCS#8 — regenerate per §1 and re-encode.
+
+#### Avoid trailing whitespace on the three `TF_VAR_*` env vars
+
+HCP Terraform silently preserves any trailing newline or CRLF pasted into an env-var field. A stray `\r\n` on `TF_VAR_snowflake_account_name`, `TF_VAR_snowflake_organization_name`, or `TF_VAR_snowflake_user` is URL-encoded into the Snowflake login URL at plan time and produces errors like:
+
+```text
+Error: open snowflake connection: parse
+  "https://ORG-ACCOUNT%0D%0A.snowflakecomputing.com:443/...": invalid URL escape "%0D"
+```
+
+When saving these values in the HCP UI: clear the field completely, retype the value, and do **not** press Enter before clicking Save.
 
 #### 3b. AWS credentials variable set
 
