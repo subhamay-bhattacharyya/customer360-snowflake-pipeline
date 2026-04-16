@@ -23,7 +23,7 @@ jobs:
     name: Deploy
     uses: subhamay-bhattacharyya-gha/tf-deploy-multi-reusable-wf/.github/workflows/terraform-deploy.yaml@main
     with:
-      cloud-provider: snowflake
+      cloud-provider: platform
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
       aws-region: ${{ vars.AWS_REGION }}
