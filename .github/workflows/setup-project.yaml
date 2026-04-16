@@ -29,7 +29,7 @@ jobs:
   onboard:
     name: Onboard AWS Project
     needs: load-config
-    uses: subhamay-bhattacharyya-gha/aws-project-onboarding/.github/workflows/aws-project-onboarding.yaml@main
+    uses: subhamay-bhattacharyya-gha/aws-project-onboarding/.github/workflows/aws-project-onboarding.yaml@feature/GHA-0003-feat-make-link-vcs-step-o
     with:
       config: ${{ needs.load-config.outputs.config }}
     secrets:
