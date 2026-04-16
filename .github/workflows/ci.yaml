@@ -34,15 +34,12 @@ jobs:
       tflint-ver: ${{ vars.TF_LINT_VER }}
       backend-type: remote
       tf-vars-file: environments/devl/terraform.tfvars
-      # aws-region: ${{ vars.AWS_REGION }}
-      snowflake-user: ${{ vars.SNOWFLAKE_USER }}
-      # snowflake-organization-name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
-      # snowflake-account-name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
-      snowflake-role: ${{ vars.SNOWFLAKE_ROLE }}
+      # snowflake-user: ${{ vars.SNOWFLAKE_USER }}
+      # snowflake-role: ${{ vars.SNOWFLAKE_ROLE }}
     secrets:
-      tfc-token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-      snowflake-private-key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-      # aws-role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+      tfc-token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO_SNOWFLAKE_ORG }}
+      # snowflake-private-key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+
 
   # ============================================================================
   # Generate Change Log
