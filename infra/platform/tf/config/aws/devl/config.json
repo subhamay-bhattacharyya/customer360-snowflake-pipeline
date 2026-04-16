@@ -14,7 +14,7 @@
           "id": "expire-raw-json-90-days",
           "enabled": true,
           "prefix": "raw-data/json",
-          "expiration_days": 90
+          "expiration_days": 180
         }
       ]
     },
