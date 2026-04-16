@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Update cloud provider from snowflake to platform in deploy workflows and adjust working directory in env.json
+- Update onboarding workflow reference to specific feature branch
+- Format JSON structure in env.json for consistency
+- Remove unused GitHub configuration from env.json
+- Update CODEOWNERS and adjust Terraform workflows for AWS and Snowflake configurations
+- Update expiration_days for lifecycle rule to 90 days in config.json
+- Update organization name in backend.tf for Snowflake projects and enhance README with key encoding instructions
+- Correct indentation and formatting in backend.tf for Terraform configuration
+- Update Terraform workflows to use Snowflake organization token and adjust expiration_days to 91 in config.json
+- Remove unnecessary whitespace in backend.tf for Terraform configuration
+- Update CI workflow to use specific version of reusable workflow for backend type remote
+
+## [Rel-001-20260415171708] - 2026-04-15
+
+### Bug Fixes
+
 - Adjust formatting in README.md for clarity
 - Disable versioning in S3 bucket configuration
 - Correct formatting in environment validation condition
@@ -42,6 +58,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update HCP variable set instructions with working configuration
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
