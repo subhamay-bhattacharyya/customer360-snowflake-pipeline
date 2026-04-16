@@ -18,7 +18,7 @@ jobs:
     name: Destroy Platform (AWS + Snowflake)
     uses: subhamay-bhattacharyya-gha/terraform-destroy-wf/.github/workflows/terraform-destroy.yaml@feature/GHA-0032-add-platform-based-multi
     with:
-      cloud-provider: snowflake
+      cloud-provider: platform
       backend-type: remote
       aws-region: ${{ vars.AWS_REGION }}
       snowflake-user: ${{ vars.SNOWFLAKE_USER }}
