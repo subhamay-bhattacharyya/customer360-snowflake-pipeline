@@ -36,7 +36,6 @@ locals {
     GitRef             = var.git_ref
     GitCommitSHA       = var.git_commit_sha
     Created            = formatdate("YYYY-MM-DD hh:mm:ss", time_static.created.rfc3339)
-    LastModified       = formatdate("YYYY-MM-DD hh:mm:ss", timestamp())
   }
 
   # Parse config from JSON files (relative to module path)

@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Remove LastModified timestamp from locals.tf
+
+## [Rel-002-20260416203436] - 2026-04-16
+
+### Bug Fixes
+
 - Update cloud provider from snowflake to platform in deploy workflows and adjust working directory in env.json
 - Update onboarding workflow reference to specific feature branch
 - Format JSON structure in env.json for consistency
@@ -17,6 +23,10 @@ All notable changes to this project will be documented in this file.
 - Update Terraform workflows to use Snowflake organization token and adjust expiration_days to 91 in config.json
 - Remove unnecessary whitespace in backend.tf for Terraform configuration
 - Update CI workflow to use specific version of reusable workflow for backend type remote
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-001-20260415171708] - 2026-04-15
 
