@@ -105,9 +105,9 @@ variable "enable_snowpipe_creation" {
 }
 
 variable "enable_trust_policy_update" {
-  description = "Enable IAM trust policy update with Snowflake credentials. Set to true only once after storage integration is created."
+  description = "Enable IAM trust policy update with Snowflake credentials from the live storage integration output. Defaults to true so the role's trust policy is always reconciled with the integration's STORAGE_AWS_IAM_USER_ARN and STORAGE_AWS_EXTERNAL_ID. Set to false only to bootstrap a brand-new environment where the storage integration does not yet exist."
   type        = bool
-  default     = false
+  default     = true
 }
 
 # ============================================================================
