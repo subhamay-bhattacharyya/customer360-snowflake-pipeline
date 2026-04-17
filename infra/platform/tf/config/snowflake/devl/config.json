@@ -4,7 +4,7 @@
       "name": "S3_STORAGE_INTEGRATION",
       "storage_provider": "S3",
       "storage_allowed_locations": [
-        "/raw-data/json/"
+        "raw-data/json/"
       ],
       "enabled": true,
       "comment": "S3 storage integration for NorthBridge raw data bucket"
@@ -168,7 +168,7 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "BRONZE",
               "stage_type": "external",
-              "url": "s3://northbridge-raw-data/raw-data/json/",
+              "url": "s3://the-s3-bucket/raw-data/json/",
               "storage_integration": "S3_STORAGE_INTEGRATION",
               "file_format": "JSON_FILE_FORMAT",
               "comment": "External S3 stage for NorthBridge raw JSON ingestion"
