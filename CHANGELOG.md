@@ -4,9 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Features
+
+- Add source schema and table for NorthBridge dataset in config files
+
+## [Rel-005-20260417015954] - 2026-04-17
+
 ### Bug Fixes
 
 - Update Snowpipe grants and enhance IAM trust policy description
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-004-20260417011644] - 2026-04-17
 
