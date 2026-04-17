@@ -6,7 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Update IAM resource permissions and correct S3 stage URL in configuration
+
+## [Rel-003-20260417005401] - 2026-04-17
+
+### Bug Fixes
+
 - Remove LastModified timestamp from locals.tf
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-002-20260416203436] - 2026-04-16
 

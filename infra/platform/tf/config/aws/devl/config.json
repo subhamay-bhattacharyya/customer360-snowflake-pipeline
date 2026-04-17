@@ -61,7 +61,7 @@
             "sqs:GetQueueUrl",
             "sqs:GetQueueAttributes"
           ],
-          "resource": "sqs-queue-arn"
+          "resource": "*"
         }
       ]
     }
