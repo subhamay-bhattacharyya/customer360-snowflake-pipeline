@@ -249,6 +249,8 @@
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "clean_northbridge.tpl",
+              "source_schema": "BRONZE",
+              "source_table": "RAW_NORTHBRIDGE",
               "comment": "Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
               "grants": [
                 {
