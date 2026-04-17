@@ -299,9 +299,13 @@ locals {
             data_retention_time_in_days = lookup(table, "data_retention_time_in_days", 1)
             change_tracking             = lookup(table, "change_tracking", false)
             drop_before_create          = lookup(table, "drop_before_create", false)
-            # Grants - INGEST_ADMIN needs INSERT and SELECT for snowpipe operations
+            # Grants:
+            # - INGEST_ADMIN needs INSERT + SELECT for Snowpipe ingestion.
+            # - DATA_OBJECT_ADMIN needs SELECT because it creates dynamic tables
+            #   (SILVER.CLEAN_NORTHBRIDGE_DT) that read from this source table.
             grants = [
-              { role_name = var.ingest_object_provisioner_role, privileges = ["INSERT", "SELECT"] }
+              { role_name = var.ingest_object_provisioner_role, privileges = ["INSERT", "SELECT"] },
+              { role_name = var.data_object_provisioner_role, privileges = ["SELECT"] }
             ]
           }
         ]
