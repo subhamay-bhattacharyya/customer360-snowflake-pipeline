@@ -6,7 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Update Snowpipe grants and enhance IAM trust policy description
+
+## [Rel-004-20260417011644] - 2026-04-17
+
+### Bug Fixes
+
 - Update IAM resource permissions and correct S3 stage URL in configuration
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-003-20260417005401] - 2026-04-17
 
