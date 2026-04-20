@@ -5,10 +5,6 @@
 
 data "aws_caller_identity" "current" {}
 
-# Captures the timestamp once at first apply; value is stored in state and
-# never changes on subsequent applies. Used for the immutable Created tag.
-resource "time_static" "created" {}
-
 # Compute KMS key alias first (no dependency on s3_config)
 locals {
   kms_key_alias_raw = try(jsondecode(file("${path.module}/${var.aws_config_path}")).aws.s3.kms_key_alias, null)
@@ -35,7 +31,6 @@ locals {
     DataClassification = var.data_classification
     GitRef             = var.git_ref
     GitCommitSHA       = var.git_commit_sha
-    Created            = formatdate("YYYY-MM-DD hh:mm:ss", time_static.created.rfc3339)
   }
 
   # Parse config from JSON files (relative to module path)
@@ -386,4 +381,8 @@ locals {
       ]
     ]) : item.key => item
   }
+
+  # SILVER must be created before GOLD — GOLD dynamic tables reference SILVER.CLEAN_NORTHBRIDGE_DT
+  dynamic_tables_silver = { for k, v in local.dynamic_tables : k => v if upper(v.schema) == "SILVER" }
+  dynamic_tables_gold   = { for k, v in local.dynamic_tables : k => v if upper(v.schema) == "GOLD" }
 }

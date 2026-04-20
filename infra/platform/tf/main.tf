@@ -248,11 +248,29 @@ module "dynamic_table" {
     snowflake = snowflake.data_object_provisioner
   }
 
-  dynamic_table_configs = local.dynamic_tables
+  dynamic_table_configs = local.dynamic_tables_silver
 
   depends_on = [
     module.database_schemas,
     module.table,
     module.warehouse
+  ]
+}
+
+# ----------------------------------------------------------------------------
+# • 5.2 Dynamic Tables — GOLD layer
+#   GOLD dims/facts reference SILVER.CLEAN_NORTHBRIDGE_DT, so SILVER must exist first
+# ----------------------------------------------------------------------------
+module "dynamic_table_gold" {
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-dynamic-table.git?ref=v1.1.0"
+
+  providers = {
+    snowflake = snowflake.data_object_provisioner
+  }
+
+  dynamic_table_configs = local.dynamic_tables_gold
+
+  depends_on = [
+    module.dynamic_table
   ]
 }
