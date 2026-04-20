@@ -6,7 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Update Snowpipe copy template and adjust compression settings
+
+## [Rel-009-20260420152720] - 2026-04-20
+
+### Bug Fixes
+
 - Improve timestamp parsing for extract_date in NorthBridge copy statements
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-008-20260420150142] - 2026-04-20
 

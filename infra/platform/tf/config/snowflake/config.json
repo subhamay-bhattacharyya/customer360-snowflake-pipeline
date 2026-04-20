@@ -227,7 +227,7 @@
               "table": "RAW_NORTHBRIDGE",
               "stage": "RAW_EXTERNAL_STG",
               "file_format": "JSON_FILE_FORMAT",
-              "copy_template": "raw_northbridge_copy.tpl",
+              "copy_template": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
               "auto_ingest": true,
               "filter_suffix": ".json",
               "comment": "Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
