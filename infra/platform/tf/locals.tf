@@ -343,6 +343,17 @@ locals {
     ]) : item.key => item
   }
 
+  # Lookup: config-level dynamic table name -> actual Snowflake object name (with project_code prefix).
+  # Used when a DT sources another DT — the template's `table` var must be the prefixed name.
+  dynamic_table_name_lookup = merge([
+    for db_key, db in lookup(local.snowflake_config, "databases", {}) : merge([
+      for schema in lookup(db, "schemas", []) : {
+        for dt_key, dt in lookup(schema, "dynamic_tables", {}) :
+        dt.name => var.project_code != "" ? upper("${var.project_code}_${dt.name}") : dt.name
+      }
+    ]...)
+  ]...)
+
   # Dynamic Tables - flatten from all databases/schemas into a map
   dynamic_tables = {
     for item in flatten([
@@ -366,7 +377,12 @@ locals {
                 database      = var.project_code != "" ? upper("${var.project_code}_${db.name}") : db.name
                 schema        = schema.name
                 source_schema = lookup(dt, "source_schema", "BRONZE")
-                table         = lookup(dt, "source_table", "RAW_AQI")
+                # If source_table is itself a DT in this config, resolve to its prefixed Snowflake name;
+                # otherwise pass through (regular tables are not prefixed in local.tables).
+                table = try(
+                  local.dynamic_table_name_lookup[lookup(dt, "source_table", "")],
+                  lookup(dt, "source_table", "RAW_NORTHBRIDGE")
+                )
               }
             ) : lookup(dt, "query", null)
             target_lag   = lookup(dt, "target_lag", "1 hour")
