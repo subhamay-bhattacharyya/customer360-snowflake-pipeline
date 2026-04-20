@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
+- Add dynamic table name lookup for Snowflake objects in locals.tf
+
+## [Rel-012-20260420201549] - 2026-04-20
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+
+### Features
+
 - Update dynamic table configurations for GOLD layer and adjust permissions in README
 
 ## [Rel-011-20260420192143] - 2026-04-20
