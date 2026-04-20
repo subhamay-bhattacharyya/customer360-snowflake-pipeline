@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Bug Fixes
+
+- Update template paths in config.json and add validation for template filenames
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+
+### Features
+
+- Add deploy workflow for Streamlit app and update Terraform workflows
+- Add Streamlit app deployment step and create dashboard script
+
 ### Refactor
 
 - Rename CTE and simplify query structure in clean_northbridge.tpl
