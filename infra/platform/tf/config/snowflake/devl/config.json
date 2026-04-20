@@ -153,7 +153,7 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "BRONZE",
               "type": "JSON",
-              "compression": "AUTO",
+              "compression": "NONE",
               "enable_octal": false,
               "allow_duplicate": false,
               "strip_outer_array": false,
