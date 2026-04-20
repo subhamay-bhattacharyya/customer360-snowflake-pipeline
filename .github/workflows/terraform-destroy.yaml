@@ -20,8 +20,5 @@ jobs:
     with:
       cloud-provider: platform
       backend-type: remote
-      # snowflake-user: ${{ vars.SNOWFLAKE_USER }}
-      # snowflake-role: ${{ vars.SNOWFLAKE_ROLE }}
     secrets:
       tfc-token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO_SNOWFLAKE_ORG }}
-      # snowflake-private-key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}

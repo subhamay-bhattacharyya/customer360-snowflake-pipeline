@@ -1,0 +1,99 @@
+name: Deploy Streamlit App to Snowflake
+description: Deploy Streamlit app to Snowflake when app files change
+
+on:
+  workflow_dispatch:                    # manual trigger only
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: environment
+        required: true
+      database:
+        description: Snowflake database
+        type: string
+        required: true
+        default: CUST360_NORTHBRIDGE_DATABASE
+      warehouse:
+        description: Snowflake warehouse
+        type: string
+        required: true
+        default: STREAMLIT_WH
+      schema:
+        description: Snowflake schema
+        type: string
+        required: true
+        default: STREAMLIT
+
+jobs:
+  deploy:
+    name: Refresh Snowflake Git Repo & Verify Streamlit
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+
+      # ── 1. Checkout repo ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Install SnowSQL ────────────────────────────────────
+      - name: Install SnowSQL
+        run: |
+          curl -o snowsql.bash \
+            https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.32-linux_x86_64.bash
+          bash snowsql.bash
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      # ── 3. Write RSA private key to disk ──────────────────────
+      - name: Write Snowflake private key
+        run: |
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" | base64 -d > /tmp/snowflake_key.p8
+          chmod 600 /tmp/snowflake_key.p8
+
+      # ── 4. Fetch latest code from GitHub into Snowflake ───────
+      - name: Fetch Git repository in Snowflake
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "ALTER GIT REPOSITORY NORTHBRIDGE_DATABASE.STREAMLIT.NORTHBRIDGE_GIT_REPO FETCH;"
+
+      # ── 5. Verify app file is present on the branch ───────────
+      - name: Verify app file in Snowflake stage
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "LS @NORTHBRIDGE_DATABASE.STREAMLIT.NORTHBRIDGE_GIT_REPO/branches/main/app/;"
+
+      # ── 6. Confirm Streamlit app status ───────────────────────
+      - name: Check Streamlit app
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "SHOW STREAMLITS LIKE 'CUSTOMER_360_DASHBOARD'
+                     IN SCHEMA NORTHBRIDGE_DATABASE.STREAMLIT;"
+
+      # ── 7. Clean up private key ───────────────────────────────
+      - name: Remove private key
+        if: always()
+        run: rm -f /tmp/snowflake_key.p8
