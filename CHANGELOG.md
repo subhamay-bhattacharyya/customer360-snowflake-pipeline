@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Refactor
+
+- Rename CTE and simplify query structure in clean_northbridge.tpl
+
+## [Rel-013-20260420205108] - 2026-04-20
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+
 ### Features
 
 - Add dynamic table name lookup for Snowflake objects in locals.tf
