@@ -4,9 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Features
+
+- Add dynamic tables for Gold layer and update comments in existing templates
+- Update README and config files for Gold layer dynamic tables
+- Update dynamic table templates to use consistent variable naming for source table
+
+## [Rel-010-20260420180516] - 2026-04-20
+
 ### Bug Fixes
 
 - Update Snowpipe copy template and adjust compression settings
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-009-20260420152720] - 2026-04-20
 
