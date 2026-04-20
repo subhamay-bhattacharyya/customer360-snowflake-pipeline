@@ -15,6 +15,6 @@ SELECT
     acct.value:overdraft_protection::BOOLEAN AS OVERDRAFT_PROTECTION,
     acct.value:monthly_fee_waived::BOOLEAN   AS MONTHLY_FEE_WAIVED,
     acct.value:last_activity_date::DATE      AS LAST_ACTIVITY_DATE
-FROM ${database}.${source_schema}.${source_table},
+FROM ${database}.${source_schema}.${table},
      LATERAL FLATTEN(INPUT => JSON_DATA:customers) cust,
      LATERAL FLATTEN(INPUT => cust.value:accounts) acct

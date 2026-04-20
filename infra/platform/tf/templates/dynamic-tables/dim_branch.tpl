@@ -7,5 +7,5 @@ SELECT DISTINCT
     cust.value:primary_branch:region::TEXT         AS REGION,
     cust.value:primary_branch:staff_count::NUMBER  AS STAFF_COUNT,
     cust.value:primary_branch:established::NUMBER  AS ESTABLISHED_YEAR
-FROM ${database}.${source_schema}.${source_table},
+FROM ${database}.${source_schema}.${table},
      LATERAL FLATTEN(INPUT => JSON_DATA:customers) cust

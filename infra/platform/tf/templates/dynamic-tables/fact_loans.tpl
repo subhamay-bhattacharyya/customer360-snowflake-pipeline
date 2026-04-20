@@ -28,6 +28,6 @@ SELECT
     ln.value:insurance:type::TEXT                     AS INSURANCE_TYPE,
     ln.value:insurance:provider::TEXT                 AS INSURANCE_PROVIDER,
     ln.value:insurance:monthly_premium::NUMBER(18,2)  AS INSURANCE_MONTHLY_PREMIUM
-FROM ${database}.${source_schema}.${source_table},
+FROM ${database}.${source_schema}.${table},
      LATERAL FLATTEN(INPUT => JSON_DATA:customers) cust,
      LATERAL FLATTEN(INPUT => cust.value:loans) ln

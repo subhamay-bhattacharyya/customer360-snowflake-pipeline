@@ -22,6 +22,6 @@ SELECT
     txn.value:processing:authorization_code::TEXT   AS AUTHORIZATION_CODE,
     txn.value:processing:processor::TEXT            AS PROCESSOR,
     txn.value:processing:settlement_date::DATE      AS SETTLEMENT_DATE
-FROM ${database}.${source_schema}.${source_table},
+FROM ${database}.${source_schema}.${table},
      LATERAL FLATTEN(INPUT => JSON_DATA:customers) cust,
      LATERAL FLATTEN(INPUT => cust.value:transactions) txn

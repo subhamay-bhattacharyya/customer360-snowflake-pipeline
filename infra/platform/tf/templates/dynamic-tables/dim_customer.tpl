@@ -61,7 +61,7 @@ WITH flattened AS (
         cust.value:financial_summary:relationship_depth::TEXT                 AS RELATIONSHIP_DEPTH,
         cust.value:financial_summary:next_best_product::TEXT                  AS NEXT_BEST_PRODUCT,
         ROW_NUMBER() OVER (PARTITION BY cust.value:customer_id ORDER BY INDEX_RECORD_TS DESC) AS RN
-    FROM ${database}.${source_schema}.${source_table},
+    FROM ${database}.${source_schema}.${table},
          LATERAL FLATTEN(INPUT => JSON_DATA:customers) cust
 )
 SELECT
