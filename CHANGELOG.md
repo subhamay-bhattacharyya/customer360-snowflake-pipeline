@@ -6,7 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- Correct timestamp parsing for extract_date in NorthBridge copy statements
+
+## [Rel-007-20260420135105] - 2026-04-20
+
+### Bug Fixes
+
 - Update nullable fields and comments in NorthBridge schema and copy statements
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
 
 ## [Rel-006-20260417135118] - 2026-04-17
 
