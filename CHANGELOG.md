@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Bug Fixes
+
+- Update nullable fields and comments in NorthBridge schema and copy statements
+
+## [Rel-006-20260417135118] - 2026-04-17
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+
 ### Features
 
 - Add source schema and table for NorthBridge dataset in config files
