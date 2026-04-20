@@ -11,8 +11,9 @@ COPY INTO ${database}.${schema}.${table} (
 FROM (
     SELECT
         COALESCE(
-            TRY_TO_TIMESTAMP_NTZ(t.$1:extract_date::STRING),
+            TRY_TO_TIMESTAMP_NTZ(TRY_TO_DATE(t.$1:extract_date::STRING)),
             TRY_TO_TIMESTAMP_NTZ(t.$1:extract_date::STRING, 'YYYY-MM-DD HH24:MI:SS'),
+            TRY_TO_TIMESTAMP_NTZ(t.$1:extract_date::STRING, 'YYYY-MM-DD"T"HH24:MI:SS'),
             TRY_TO_TIMESTAMP_NTZ(t.$1:extract_date::STRING, 'DD-MM-YYYY HH24:MI:SS')
         )                                                AS INDEX_RECORD_TS,
         t.$1::VARIANT                                    AS JSON_DATA,
