@@ -69,7 +69,7 @@
               "table_type": "TRANSIENT",
               "drop_before_create": true,
               "data_retention_time_in_days": 1,
-              "comment": "Raw ingestion table — VARIANT payload + audit columns",
+              "comment": "Raw ingestion table VARIANT payload + audit columns",
               "columns": [
                 {
                   "name": "ID",
@@ -86,7 +86,7 @@
                   "name": "INDEX_RECORD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Record timestamp from source (extract_date) — enforced non-null in SILVER"
+                  "comment": "Record timestamp from source (extract_date) enforced non-null in SILVER"
                 },
                 {
                   "name": "JSON_DATA",
@@ -98,37 +98,37 @@
                   "name": "RECORD_COUNT",
                   "type": "NUMBER(38,0)",
                   "nullable": true,
-                  "comment": "Source record_count — enforced non-null in SILVER"
+                  "comment": "Source record_count enforced non-null in SILVER"
                 },
                 {
                   "name": "JSON_VERSION",
                   "type": "VARCHAR(255)",
                   "nullable": true,
-                  "comment": "Source schema_version — enforced non-null in SILVER"
+                  "comment": "Source schema_version enforced non-null in SILVER"
                 },
                 {
                   "name": "_STG_FILE_NAME",
                   "type": "VARCHAR(500)",
                   "nullable": true,
-                  "comment": "Audit — source stage file name"
+                  "comment": "Audit source stage file name"
                 },
                 {
                   "name": "_STG_FILE_LOAD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit — stage load timestamp"
+                  "comment": "Audit stage load timestamp"
                 },
                 {
                   "name": "_STG_FILE_MD5",
                   "type": "VARCHAR(32)",
                   "nullable": true,
-                  "comment": "Audit — MD5 hash of stage file"
+                  "comment": "Audit MD5 hash of stage file"
                 },
                 {
                   "name": "_COPY_DATA_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit — COPY INTO execution timestamp"
+                  "comment": "Audit COPY INTO execution timestamp"
                 }
               ],
               "primary_key": {
@@ -208,7 +208,7 @@
               "warehouse": "TRANSFORM_WH",
               "stream_trigger": "RAW_NORTHBRIDGE_STREAM",
               "sql_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
-              "comment": "Stream-triggered task — BRONZE to SILVER to GOLD transforms"
+              "comment": "Stream-triggered task BRONZE to SILVER to GOLD transforms"
             },
             "refresh_customer_data_task": {
               "name": "REFRESH_CUSTOMER_DATA_TASK",
@@ -230,7 +230,7 @@
               "copy_template": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
               "auto_ingest": true,
               "filter_suffix": ".json",
-              "comment": "Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
+              "comment": "Auto-ingest pipe S3 to BRONZE.RAW_NORTHBRIDGE"
             }
           }
         },
@@ -249,7 +249,7 @@
               "query_template_file": "clean_northbridge.tpl",
               "source_schema": "BRONZE",
               "source_table": "RAW_NORTHBRIDGE",
-              "comment": "Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
+              "comment": "Cleansed and typed NorthBridge dataset auto-refreshed from BRONZE",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -294,7 +294,7 @@
                 { "name": "kyc_status", "type": "VARCHAR" }
               ],
               "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
-              "comment": "Customer scoring evaluation logic — returns true if 3 sub-criteria met"
+              "comment": "Customer scoring evaluation logic returns true if 3 sub-criteria met"
             },
             "get_int": {
               "name": "GET_INT",
@@ -306,7 +306,7 @@
                 { "name": "val", "type": "VARIANT" }
               ],
               "body": "SELECT val::NUMBER",
-              "comment": "Helper — safely casts VARIANT to NUMBER"
+              "comment": "Helper safely casts VARIANT to NUMBER"
             }
           }
         },
