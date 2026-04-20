@@ -85,8 +85,8 @@
                 {
                   "name": "INDEX_RECORD_TS",
                   "type": "TIMESTAMP_NTZ",
-                  "nullable": false,
-                  "comment": "Record timestamp from source"
+                  "nullable": true,
+                  "comment": "Record timestamp from source (extract_date) — enforced non-null in SILVER"
                 },
                 {
                   "name": "JSON_DATA",
@@ -97,12 +97,14 @@
                 {
                   "name": "RECORD_COUNT",
                   "type": "NUMBER(38,0)",
-                  "nullable": false
+                  "nullable": true,
+                  "comment": "Source record_count — enforced non-null in SILVER"
                 },
                 {
                   "name": "JSON_VERSION",
                   "type": "VARCHAR(255)",
-                  "nullable": false
+                  "nullable": true,
+                  "comment": "Source schema_version — enforced non-null in SILVER"
                 },
                 {
                   "name": "_STG_FILE_NAME",
