@@ -1,0 +1,20 @@
+SELECT
+    acct.value:account_id::TEXT              AS ACCOUNT_ID,
+    cust.value:customer_id::TEXT             AS CUSTOMER_ID,
+    cust.value:primary_branch:branch_id::TEXT AS BRANCH_ID,
+    acct.value:product_id::TEXT              AS PRODUCT_ID,
+    acct.value:product_name::TEXT            AS PRODUCT_NAME,
+    acct.value:product_type::TEXT            AS PRODUCT_TYPE,
+    acct.value:product_category::TEXT        AS PRODUCT_CATEGORY,
+    acct.value:account_status::TEXT          AS ACCOUNT_STATUS,
+    acct.value:opened_date::DATE             AS OPENED_DATE,
+    acct.value:currency::TEXT                AS CURRENCY,
+    acct.value:current_balance::NUMBER(18,2) AS CURRENT_BALANCE,
+    acct.value:available_balance::NUMBER(18,2) AS AVAILABLE_BALANCE,
+    acct.value:interest_earned_ytd::NUMBER(18,2) AS INTEREST_EARNED_YTD,
+    acct.value:overdraft_protection::BOOLEAN AS OVERDRAFT_PROTECTION,
+    acct.value:monthly_fee_waived::BOOLEAN   AS MONTHLY_FEE_WAIVED,
+    acct.value:last_activity_date::DATE      AS LAST_ACTIVITY_DATE
+FROM ${database}.${source_schema}.${table},
+     LATERAL FLATTEN(INPUT => JSON_DATA:customers) cust,
+     LATERAL FLATTEN(INPUT => cust.value:accounts) acct

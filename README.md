@@ -92,8 +92,10 @@ Phase 4 ── Snowpipes — BRONZE layer
            module.s3_notification     → S3 event → SQS wiring
                                         (enable_snowpipe_creation=true)
 
-Phase 5 ── Dynamic Tables — SILVER layer
+Phase 5 ── Dynamic Tables — SILVER + GOLD layers
            module.dynamic_table       → SILVER.CLEAN_NORTHBRIDGE_DT
+                                        GOLD.DIM_CUSTOMER · DIM_PRODUCT · DIM_BRANCH
+                                        GOLD.FACT_TRANSACTIONS · FACT_LOANS · FACT_ACCOUNT_BALANCES
 ```
 
 ---
@@ -127,7 +129,13 @@ customer360-snowflake-pipeline/
 │       │   ├── bucket-policy/
 │       │   │   └── s3-bucket-policy.tpl
 │       │   ├── dynamic-tables/
-│       │   │   └── clean_northbridge.tpl
+│       │   │   ├── clean_northbridge.tpl       # SILVER cleansing
+│       │   │   ├── dim_customer.tpl            # GOLD customer dimension
+│       │   │   ├── dim_product.tpl             # GOLD product dimension
+│       │   │   ├── dim_branch.tpl              # GOLD branch dimension
+│       │   │   ├── fact_transactions.tpl       # GOLD transaction fact
+│       │   │   ├── fact_loans.tpl              # GOLD loan fact
+│       │   │   └── fact_account_balances.tpl   # GOLD account balance fact
 │       │   └── snowpipe-copy-statements/
 │       │       └── raw_northbridge_copy.tpl
 │       └── tests/
