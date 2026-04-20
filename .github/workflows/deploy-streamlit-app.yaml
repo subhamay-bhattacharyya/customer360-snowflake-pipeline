@@ -78,7 +78,25 @@ jobs:
             --private-key-path /tmp/snowflake_key.p8 \
             --query "LS @NORTHBRIDGE_DATABASE.STREAMLIT.NORTHBRIDGE_GIT_REPO/branches/main/app/;"
 
-      # ── 6. Confirm Streamlit app status ───────────────────────
+      # ── 6. Create or replace the Streamlit app (bootstrap-safe) ───
+      - name: Create or replace Streamlit app
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "CREATE OR REPLACE STREAMLIT ${{ inputs.database }}.${{ inputs.schema }}.CUSTOMER_360_DASHBOARD
+                       ROOT_LOCATION   = '@${{ inputs.database }}.${{ inputs.schema }}.NORTHBRIDGE_GIT_REPO/branches/main/app'
+                       MAIN_FILE       = 'northbridge_dashboard.py'
+                       QUERY_WAREHOUSE = ${{ inputs.warehouse }}
+                       COMMENT         = 'NorthBridge Customer 360 & Risk Analytics dashboard';"
+
+      # ── 7. Confirm Streamlit app status ───────────────────────
       - name: Check Streamlit app
         env:
           SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
@@ -91,9 +109,9 @@ jobs:
           snowsql \
             --private-key-path /tmp/snowflake_key.p8 \
             --query "SHOW STREAMLITS LIKE 'CUSTOMER_360_DASHBOARD'
-                     IN SCHEMA NORTHBRIDGE_DATABASE.STREAMLIT;"
+                     IN SCHEMA ${{ inputs.database }}.${{ inputs.schema }};"
 
-      # ── 7. Clean up private key ───────────────────────────────
+      # ── 8. Clean up private key ───────────────────────────────
       - name: Remove private key
         if: always()
         run: rm -f /tmp/snowflake_key.p8
