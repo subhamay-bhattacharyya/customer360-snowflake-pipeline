@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
+- Update dynamic table configurations for GOLD layer and adjust permissions in README
+
+## [Rel-011-20260420192143] - 2026-04-20
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+
+### Features
+
 - Add dynamic tables for Gold layer and update comments in existing templates
 - Update README and config files for Gold layer dynamic tables
 - Update dynamic table templates to use consistent variable naming for source table
