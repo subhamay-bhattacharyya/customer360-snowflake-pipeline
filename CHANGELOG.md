@@ -9,9 +9,11 @@ All notable changes to this project will be documented in this file.
 - Update template paths in config.json and add validation for template filenames
 - Add table grant pairs and resource for Snowflake privileges workaround
 - Expand SQL query to include additional customer and financial details in dynamic tables
+- Update dynamic tables to include additional primary branch and customer details
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
