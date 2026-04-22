@@ -162,6 +162,29 @@ module "table" {
   depends_on = [module.stage]
 }
 
+# ----------------------------------------------------------------------------
+# • 2.7 Table Grants
+# Applied under data_object_provisioner so the grantor is the table owner
+# (DATA_OBJECT_ADMIN), matching Snowflake's ownership boundary. Workaround
+# for terraform-snowflake-table v3.0.0 dropping the `grants` attribute;
+# delete this resource once the module applies grants itself.
+# ----------------------------------------------------------------------------
+resource "snowflake_grant_privileges_to_account_role" "table_grants" {
+  for_each = local.table_grant_pairs
+
+  provider = snowflake.data_object_provisioner
+
+  account_role_name = each.value.role_name
+  privileges        = each.value.privileges
+
+  on_schema_object {
+    object_type = "TABLE"
+    object_name = "\"${each.value.database}\".\"${each.value.schema}\".\"${each.value.name}\""
+  }
+
+  depends_on = [module.table]
+}
+
 # ============================================================================
 # PHASE 3: AWS Trust Policy Update
 # ============================================================================
@@ -209,7 +232,8 @@ module "pipe" {
 
   depends_on = [
     module.aws_iam_role_final,
-    module.table
+    module.table,
+    snowflake_grant_privileges_to_account_role.table_grants,
   ]
 }
 

@@ -308,6 +308,23 @@ locals {
     ]) : item.key => item
   }
 
+  # Flatten local.tables into one entry per (table, grantee) pair so
+  # snowflake_grant_privileges_to_account_role can iterate with for_each.
+  # Workaround: terraform-snowflake-table v3.0.0 silently drops the `grants`
+  # attribute on table_configs, so we issue the grants directly.
+  table_grant_pairs = merge([
+    for tk, t in local.tables : {
+      for g in lookup(t, "grants", []) :
+      "${tk}__${g.role_name}" => {
+        database   = t.database
+        schema     = t.schema
+        name       = t.name
+        role_name  = g.role_name
+        privileges = g.privileges
+      }
+    }
+  ]...)
+
   # Snowpipes - flatten from all databases/schemas into a map
   snowpipes = {
     for item in flatten([
