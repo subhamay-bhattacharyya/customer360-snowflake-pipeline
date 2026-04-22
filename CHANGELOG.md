@@ -10,9 +10,11 @@ All notable changes to this project will be documented in this file.
 - Add table grant pairs and resource for Snowflake privileges workaround
 - Expand SQL query to include additional customer and financial details in dynamic tables
 - Update dynamic tables to include additional primary branch and customer details
+- Remove static trust block and reconcile IAM trust policy at apply time
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
