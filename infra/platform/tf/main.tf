@@ -186,17 +186,11 @@ resource "snowflake_grant_privileges_to_account_role" "table_grants" {
 }
 
 # ============================================================================
-# PHASE 3: AWS Trust Policy Update
+# PHASE 3: AWS Trust Policy Reconcile
 # ============================================================================
-# Updates the IAM role trust policy with Snowflake credentials from storage integration.
-#
-# WORKFLOW FOR FRESH DEPLOYMENTS:
-# 1. First apply:  terraform apply -var="enable_trust_policy_update=false"
-#    - Creates all resources with placeholder trust policy
-# 2. Second apply: terraform apply -var="enable_trust_policy_update=true"
-#    - Updates trust policy with Snowflake values
-# 3. Update config/aws/{env}/config.json with the Snowflake values from output
-# 4. Future applies: terraform apply (no flag needed, uses JSON config values)
+# Reconciles the IAM role's trust policy with the live storage integration's
+# STORAGE_AWS_IAM_USER_ARN and STORAGE_AWS_EXTERNAL_ID on every apply. Values
+# come directly from the storage integration module output — no JSON config.
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
@@ -205,7 +199,7 @@ resource "snowflake_grant_privileges_to_account_role" "table_grants" {
 module "aws_iam_role_final" {
   source = "./modules/iam_role_final"
 
-  enabled                = var.enable_trust_policy_update && local.has_storage_integration_config
+  enabled                = local.has_storage_integration_config
   role_name              = local.iam_role_config.name
   snowflake_iam_user_arn = local.snowflake_iam_user_arn_runtime
   snowflake_external_id  = local.snowflake_external_id_runtime

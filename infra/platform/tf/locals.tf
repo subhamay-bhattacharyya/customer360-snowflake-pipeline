@@ -40,7 +40,6 @@ locals {
   # Extract nested sections
   aws_config       = local.aws_config_file.aws
   snowflake_config = local.snowflake_config_file
-  trust_config     = local.aws_config_file.trust
 
   # ============================================================================
   # AWS Configuration
@@ -49,22 +48,26 @@ locals {
   # Check if storage integrations are configured (known at plan time from input config)
   has_storage_integration_config = length(lookup(local.snowflake_config, "storage_integrations", {})) > 0
 
-  # Assume role policy - uses Snowflake principal ARN and external ID from trust config JSON
-  # On first apply, these are empty so we use a placeholder
-  # After storage integration is created, update the JSON config with actual values
-  snowflake_principal_arn = local.trust_config.snowflake_principal_arn
-  snowflake_external_id   = local.trust_config.snowflake_external_id
-  has_snowflake_trust     = local.snowflake_principal_arn != "" && local.snowflake_external_id != ""
+  # Role name extracted as a standalone local so storage_integrations can reference it
+  # without pulling in iam_role_config.assume_role_policy, which would create a cycle
+  # (storage_integrations -> integration output -> assume_role_policy -> ...).
+  iam_role_name = "${var.project_code}-${local.aws_config.iam.role_name}-${var.environment}"
 
+  # Assume role policy — computed from the live storage integration output at apply time.
+  # On fresh creation the runtime values are empty, so we use an account-root placeholder;
+  # after the storage integration exists, subsequent plans converge on the Snowflake trust
+  # with no config edits needed.
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect    = "Allow",
-      Principal = { AWS = local.has_snowflake_trust ? local.snowflake_principal_arn : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" },
-      Action    = "sts:AssumeRole",
-      Condition = local.has_snowflake_trust ? {
+      Effect = "Allow",
+      Principal = {
+        AWS = local.snowflake_iam_user_arn_runtime != "" ? local.snowflake_iam_user_arn_runtime : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+      },
+      Action = "sts:AssumeRole",
+      Condition = local.snowflake_external_id_runtime != "" ? {
         StringEquals = {
-          "sts:ExternalId" = local.snowflake_external_id
+          "sts:ExternalId" = local.snowflake_external_id_runtime
         }
       } : {}
     }]
@@ -85,7 +88,7 @@ locals {
 
   # IAM Role Configuration
   iam_role_config = {
-    name               = "${var.project_code}-${local.aws_config.iam.role_name}-${var.environment}"
+    name               = local.iam_role_name
     assume_role_policy = local.assume_role_policy
     s3_bucket_arn      = "arn:aws:s3:::${local.s3_config.bucket_name}"
     kms_key_arn        = local.kms_key_alias != null ? data.aws_kms_key.kms[0].arn : null
@@ -207,7 +210,7 @@ locals {
     for si_key, si in lookup(local.snowflake_config, "storage_integrations", {}) : si_key => {
       name                      = var.project_code != "" ? upper("${var.project_code}_${si.name}") : si.name
       storage_provider          = si.storage_provider
-      storage_aws_role_arn      = local.iam_role_config.name != "" ? "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.iam_role_config.name}" : lookup(si, "storage_aws_role_arn", "")
+      storage_aws_role_arn      = local.iam_role_name != "" ? "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.iam_role_name}" : lookup(si, "storage_aws_role_arn", "")
       storage_allowed_locations = [for loc in lookup(si, "storage_allowed_locations", []) : "s3://${local.s3_config.bucket_name}/${loc}"]
       storage_blocked_locations = lookup(si, "storage_blocked_locations", [])
       enabled                   = lookup(si, "enabled", true)

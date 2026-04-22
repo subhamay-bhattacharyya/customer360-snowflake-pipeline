@@ -4,6 +4,12 @@ run-name: >
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: environment
+        required: true
+
 
 concurrency:
   group: terraform-destroy-${{ github.ref }}
