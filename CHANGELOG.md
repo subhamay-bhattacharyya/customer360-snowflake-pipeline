@@ -7,9 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 - Update template paths in config.json and add validation for template filenames
+- Add table grant pairs and resource for Snowflake privileges workaround
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 
 ### Features
