@@ -26,7 +26,7 @@
     },
     "transform_wh": {
       "name": "TRANSFORM_WH",
-      "comment": "Stream tasks, BRONZE to SILVER to GOLD transforms",
+      "comment": "Dynamic Table refresh, BRONZE to SILVER to GOLD transforms",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -80,7 +80,7 @@
               "table_type": "TRANSIENT",
               "drop_before_create": true,
               "data_retention_time_in_days": 1,
-              "comment": "Raw ingestion table \u2014 VARIANT payload + audit columns",
+              "comment": "Raw ingestion table — VARIANT payload + audit columns",
               "columns": [
                 {
                   "name": "ID",
@@ -119,25 +119,25 @@
                   "name": "_STG_FILE_NAME",
                   "type": "VARCHAR(500)",
                   "nullable": true,
-                  "comment": "Audit \u2014 source stage file name"
+                  "comment": "Audit — source stage file name"
                 },
                 {
                   "name": "_STG_FILE_LOAD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit \u2014 stage load timestamp"
+                  "comment": "Audit — stage load timestamp"
                 },
                 {
                   "name": "_STG_FILE_MD5",
                   "type": "VARCHAR(64)",
                   "nullable": true,
-                  "comment": "Audit \u2014 SHA-256 hash of stage file"
+                  "comment": "Audit — SHA-256 hash of stage file"
                 },
                 {
                   "name": "_COPY_DATA_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit \u2014 COPY INTO execution timestamp"
+                  "comment": "Audit — COPY INTO execution timestamp"
                 }
               ],
               "primary_key": {
@@ -174,44 +174,6 @@
               "comment": "External S3 stage for NorthBridge raw JSON ingestion"
             }
           },
-          "streams": {
-            "raw_northbridge_stream": {
-              "name": "RAW_NORTHBRIDGE_STREAM",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "source": "RAW_NORTHBRIDGE",
-              "append_only": true,
-              "comment": "Captures incremental inserts to trigger downstream task"
-            }
-          },
-          "tasks": {
-            "copy_banking_data": {
-              "name": "COPY_BANKING_DATA",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "LOAD_WH",
-              "schedule": "5 MINUTE",
-              "sql_template_file": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
-              "comment": "Scheduled COPY INTO from external stage to BRONZE table"
-            },
-            "process_northbridge_stream_task": {
-              "name": "PROCESS_NORTHBRIDGE_STREAM_TASK",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "TRANSFORM_WH",
-              "stream_trigger": "RAW_NORTHBRIDGE_STREAM",
-              "sql_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
-              "comment": "Stream-triggered task \u2014 BRONZE to SILVER to GOLD transforms"
-            },
-            "refresh_customer_data_task": {
-              "name": "REFRESH_CUSTOMER_DATA_TASK",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "TRANSFORM_WH",
-              "schedule": "60 MINUTE",
-              "comment": "Periodic enrichment of customer data"
-            }
-          },
           "snowpipes": {
             "raw_northbridge_pipe": {
               "name": "RAW_NORTHBRIDGE_PIPE",
@@ -223,7 +185,7 @@
               "copy_template": "raw_northbridge_copy.tpl",
               "auto_ingest": true,
               "filter_suffix": ".json",
-              "comment": "Auto-ingest pipe \u2014 S3 to BRONZE.RAW_NORTHBRIDGE"
+              "comment": "Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
             }
           }
         },
@@ -242,7 +204,7 @@
               "query_template_file": "clean_northbridge.tpl",
               "source_schema": "BRONZE",
               "source_table": "RAW_NORTHBRIDGE",
-              "comment": "Cleansed and typed NorthBridge dataset \u2014 auto-refreshed from BRONZE",
+              "comment": "Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -306,7 +268,7 @@
                 }
               ],
               "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
-              "comment": "Customer scoring evaluation logic \u2014 returns true if 3 sub-criteria met"
+              "comment": "Customer scoring evaluation logic — returns true if 3 sub-criteria met"
             },
             "get_int": {
               "name": "GET_INT",
@@ -321,7 +283,7 @@
                 }
               ],
               "body": "SELECT val::NUMBER",
-              "comment": "Helper \u2014 safely casts VARIANT to NUMBER"
+              "comment": "Helper — safely casts VARIANT to NUMBER"
             }
           },
           "dynamic_tables": {
@@ -336,7 +298,7 @@
               "query_template_file": "dim_customer.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold \u2014 Customer dimension (latest snapshot per customer)",
+              "comment": "Gold — Customer dimension (latest snapshot per customer)",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -357,7 +319,7 @@
               "query_template_file": "dim_product.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold \u2014 Product dimension derived from account data",
+              "comment": "Gold — Product dimension derived from account data",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -378,7 +340,7 @@
               "query_template_file": "dim_branch.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold \u2014 Branch dimension from customer primary branch data",
+              "comment": "Gold — Branch dimension from customer primary branch data",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -399,7 +361,7 @@
               "query_template_file": "fact_transactions.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold \u2014 Transaction fact table",
+              "comment": "Gold — Transaction fact table",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -420,7 +382,7 @@
               "query_template_file": "fact_loans.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold \u2014 Loan fact table",
+              "comment": "Gold — Loan fact table",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -441,7 +403,7 @@
               "query_template_file": "fact_account_balances.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold \u2014 Account balance fact table",
+              "comment": "Gold — Account balance fact table",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",

@@ -177,30 +177,6 @@
               }
             }
           },
-          "streams": {
-            "raw_aqi_stream": {
-              "name": "RAW_AQI_STREAM",
-              "source": "RAW_AQI",
-              "comment": "Captures incremental inserts/updates to trigger downstream task execution."
-            }
-          },
-          "tasks": {
-            "copy_air_quality_data": {
-              "name": "COPY_AIR_QUALITY_DATA",
-              "warehouse": "LOAD_WH",
-              "comment": "Scheduled COPY INTO from stage to bronze table."
-            },
-            "process_aqi_stream_task": {
-              "name": "PROCESS_AQI_STREAM_TASK",
-              "warehouse": "TRANSFORM_WH",
-              "comment": "Triggered by stream changes; runs transformations bronze → silver → gold."
-            },
-            "refresh_weather_data_task": {
-              "name": "REFRESH_WEATHER_DATA_TASK",
-              "warehouse": "TRANSFORM_WH",
-              "comment": "Periodic enrichment refresh task."
-            }
-          },
           "snowpipes": {
             "raw_aqi_pipe": {
               "name": "RAW_AQI_PIPE",

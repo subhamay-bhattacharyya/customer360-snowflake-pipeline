@@ -55,7 +55,7 @@ S3 (northbridge-raw-data/raw-data/json/)
         ▼  Snowpipe auto-ingest (RAW_NORTHBRIDGE_PIPE)
 BRONZE  →  RAW_NORTHBRIDGE          (VARIANT + audit columns, 25,000 records)
         │
-        ▼  RAW_NORTHBRIDGE_STREAM → PROCESS_NORTHBRIDGE_STREAM_TASK
+        ▼  Dynamic Table auto-refresh (target_lag = "downstream")
 SILVER  →  CLEAN_NORTHBRIDGE_DT    (Dynamic Table — typed & cleansed)
         │
         ▼  Dynamic Tables + UDFs (PROMINENT_INDEX, THREE_SUB_INDEX_CRITERIA, GET_INT)
@@ -589,7 +589,7 @@ Upload `app/northbridge_dashboard.py` via the Snowflake console:
 | Name | Size | Purpose |
 | --- | --- | --- |
 | `LOAD_WH` | MEDIUM | Snowpipe ingestion + COPY operations |
-| `TRANSFORM_WH` | X-SMALL | Stream tasks, BRONZE → SILVER → GOLD |
+| `TRANSFORM_WH` | X-SMALL | Dynamic Table refresh, BRONZE → SILVER → GOLD |
 | `STREAMLIT_WH` | X-SMALL | Dashboard queries |
 | `ADHOC_WH` | X-SMALL | Development + ad-hoc debugging |
 

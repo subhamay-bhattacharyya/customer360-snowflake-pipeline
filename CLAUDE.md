@@ -29,8 +29,10 @@ This project uses a set of installed skills. Claude Code **must consult the rele
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `snowflake-config-tables`                    | `databases.*.schemas[].tables` — columns, types, primary keys, TRANSIENT vs PERMANENT, audit columns     |
 | `snowflake-config-stages-fileformats`        | `schemas[].stages`, `schemas[].file_formats`                                                             |
-| `snowflake-config-streams-tasks-pipes`       | `schemas[].streams`, `schemas[].tasks`, `schemas[].snowpipes`                                            |
+| `snowflake-config-snowpipes`                 | `schemas[].snowpipes`                                                                                    |
 | `snowflake-config-dynamic-tables-functions`  | `schemas[].dynamic_tables`, `schemas[].functions`                                                        |
+
+> Streams and tasks are not used in this pipeline. Ingestion is handled by Snowpipe (auto-ingest from S3) and downstream refreshes are handled by Dynamic Tables (`target_lag = "downstream"`). Do not add `streams` or `tasks` blocks to the config.
 
 ### When multiple skills apply
 
@@ -102,7 +104,7 @@ S3 raw-data/json/
         ▼  Snowpipe auto-ingest (RAW_NORTHBRIDGE_PIPE)
 BRONZE.RAW_NORTHBRIDGE          (VARIANT + audit columns)
         │
-        ▼  RAW_NORTHBRIDGE_STREAM + PROCESS_NORTHBRIDGE_STREAM_TASK
+        ▼  Dynamic Table auto-refresh (target_lag = "downstream")
 SILVER.CLEAN_NORTHBRIDGE_DT     (Dynamic Table, typed & cleansed)
         │
         ▼  Dynamic Tables + UDFs
@@ -150,7 +152,7 @@ Terraform reads all resource definitions from JSON config files. **Never hardcod
 | File                                | Purpose                                                                                                          | Skills                                                                                                                                                |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `infra/platform/tf/config/aws/config.json`       | S3, IAM role, IAM policies                                                                                       | `aws-config-s3`, `aws-config-iam-policies`                                                                                                            |
-| `infra/platform/tf/config/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, streams, tasks, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-streams-tasks-pipes`, `snowflake-config-dynamic-tables-functions` |
+| `infra/platform/tf/config/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-snowpipes`, `snowflake-config-dynamic-tables-functions` |
 
 `infra/platform/tf/config/snowflake/config.backup.json` is a safe reference copy — do not delete or overwrite it.
 
@@ -185,9 +187,7 @@ infra/platform/tf/config/snowflake/config.json
 │   ├── tables.*                  ← snowflake-config-tables
 │   ├── stages.*                  ← snowflake-config-stages-fileformats
 │   ├── file_formats.*            ← snowflake-config-stages-fileformats
-│   ├── streams.*                 ← snowflake-config-streams-tasks-pipes
-│   ├── tasks.*                   ← snowflake-config-streams-tasks-pipes
-│   ├── snowpipes.*               ← snowflake-config-streams-tasks-pipes
+│   ├── snowpipes.*               ← snowflake-config-snowpipes
 │   ├── dynamic_tables.*          ← snowflake-config-dynamic-tables-functions
 │   └── functions.*               ← snowflake-config-dynamic-tables-functions
 ```
@@ -200,7 +200,7 @@ SQL logic lives in `.tpl` files under `infra/platform/tf/templates/`. Terraform 
 | ------------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------- |
 | `bucket-policy/s3-bucket-policy.tpl`                   | S3 bucket policy for Snowflake storage integration     | `aws-config-iam-policies`                      |
 | `dynamic-tables/clean_northbridge.tpl`                 | SILVER cleansing + typing SQL                          | `snowflake-config-dynamic-tables-functions`    |
-| `snowpipe-copy-statements/raw_northbridge_copy.tpl`    | `COPY INTO BRONZE.RAW_NORTHBRIDGE` from external stage | `snowflake-config-streams-tasks-pipes`         |
+| `snowpipe-copy-statements/raw_northbridge_copy.tpl`    | `COPY INTO BRONZE.RAW_NORTHBRIDGE` from external stage | `snowflake-config-snowpipes`                   |
 
 ### Snowflake Authentication
 
@@ -242,11 +242,11 @@ One edge on **fresh bootstrap only**: set `-var="enable_snowpipe_creation=false"
 
 ## Warehouses
 
-| Name             | Size      | Purpose                                  |
-| ---------------- | --------- | ---------------------------------------- |
-| `LOAD_WH`        | MEDIUM    | Snowpipe ingestion + COPY operations     |
-| `TRANSFORM_WH`   | X-SMALL   | Stream tasks, BRONZE → SILVER → GOLD     |
-| `STREAMLIT_WH`   | X-SMALL   | Dashboard queries                        |
-| `ADHOC_WH`       | X-SMALL   | Development + ad-hoc debugging           |
+| Name           | Size    | Purpose                                       |
+| -------------- | ------- | --------------------------------------------- |
+| `LOAD_WH`      | MEDIUM  | Snowpipe ingestion + COPY operations          |
+| `TRANSFORM_WH` | X-SMALL | Dynamic Table refresh, BRONZE → SILVER → GOLD |
+| `STREAMLIT_WH` | X-SMALL | Dashboard queries                             |
+| `ADHOC_WH`     | X-SMALL | Development + ad-hoc debugging                |
 
 All warehouses start suspended (`initially_suspended = true`) and auto-resume on demand. Auto-suspend is 60s.
