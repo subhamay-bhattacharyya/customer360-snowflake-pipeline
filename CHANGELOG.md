@@ -11,9 +11,11 @@ All notable changes to this project will be documented in this file.
 - Expand SQL query to include additional customer and financial details in dynamic tables
 - Update dynamic tables to include additional primary branch and customer details
 - Remove static trust block and reconcile IAM trust policy at apply time
+- Remove streams and tasks configuration, update documentation for Snowpipe and Dynamic Tables
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
