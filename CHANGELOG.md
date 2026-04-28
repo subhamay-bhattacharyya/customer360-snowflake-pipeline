@@ -14,9 +14,11 @@ All notable changes to this project will be documented in this file.
 - Remove streams and tasks configuration, update documentation for Snowpipe and Dynamic Tables
 - Update Streamlit deployment workflow to handle Snowflake private key securely
 - Rename job to Refresh Streamlit and add verification for Snowflake connection variables
+- Update job name in Streamlit deployment workflow and add CREATE VIEW privilege for GOLD schema
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
