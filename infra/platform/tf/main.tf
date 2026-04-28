@@ -310,7 +310,80 @@ module "dynamic_table_gold" {
 }
 
 # ============================================================================
-# PHASE 6: Views (GOLD layer)
+# PHASE 6a: Analyst Role (consumed by view grants in 6c)
+# ============================================================================
+# NORTHBRIDGE_ANALYST is the read-only role granted SELECT on GOLD views.
+# Creating it in Terraform removes the manual bootstrap step previously in
+# README §2b. Bootstrap requirement: DB_PROVISIONER must hold CREATE ROLE on
+# the account — run once as ACCOUNTADMIN:
+#
+#   GRANT CREATE ROLE ON ACCOUNT TO ROLE DB_PROVISIONER;
+#
+# DB_PROVISIONER becomes the role's owner and can therefore grant it onward
+# (e.g. to SYSADMIN) without further privilege.
+# ----------------------------------------------------------------------------
+resource "snowflake_account_role" "northbridge_analyst" {
+  provider = snowflake.db_provisioner
+
+  name    = "NORTHBRIDGE_ANALYST"
+  comment = "[${var.project_code}] Read-only access to GOLD views for dashboard users"
+}
+
+resource "snowflake_grant_account_role" "northbridge_analyst_to_sysadmin" {
+  provider = snowflake.db_provisioner
+
+  role_name        = snowflake_account_role.northbridge_analyst.name
+  parent_role_name = "SYSADMIN"
+}
+
+# Warehouse USAGE — granted by warehouse owner (WAREHOUSE_PROVISIONER).
+resource "snowflake_grant_privileges_to_account_role" "analyst_warehouse_usage" {
+  provider = snowflake.warehouse_provisioner
+
+  account_role_name = snowflake_account_role.northbridge_analyst.name
+  privileges        = ["USAGE"]
+
+  on_account_object {
+    object_type = "WAREHOUSE"
+    object_name = upper("${var.project_code}_STREAMLIT_WH")
+  }
+
+  depends_on = [module.warehouse]
+}
+
+# Database USAGE — granted by database owner (DB_PROVISIONER).
+resource "snowflake_grant_privileges_to_account_role" "analyst_database_usage" {
+  provider = snowflake.db_provisioner
+
+  account_role_name = snowflake_account_role.northbridge_analyst.name
+  privileges        = ["USAGE"]
+
+  on_account_object {
+    object_type = "DATABASE"
+    object_name = upper("${var.project_code}_NORTHBRIDGE_DATABASE")
+  }
+
+  depends_on = [module.database_schemas]
+}
+
+# Schema USAGE on GOLD + STREAMLIT — granted by schema owner (DB_PROVISIONER).
+resource "snowflake_grant_privileges_to_account_role" "analyst_schema_usage" {
+  for_each = toset(["GOLD", "STREAMLIT"])
+
+  provider = snowflake.db_provisioner
+
+  account_role_name = snowflake_account_role.northbridge_analyst.name
+  privileges        = ["USAGE"]
+
+  on_schema {
+    schema_name = "\"${upper("${var.project_code}_NORTHBRIDGE_DATABASE")}\".\"${each.value}\""
+  }
+
+  depends_on = [module.database_schemas]
+}
+
+# ============================================================================
+# PHASE 6b: Views (GOLD layer)
 # ============================================================================
 # Views read from GOLD CUST360_* dynamic tables, so they must be created after
 # module.dynamic_table_gold. The view module does not apply grants, so grants
@@ -338,6 +411,13 @@ module "views" {
   depends_on = [module.dynamic_table_gold]
 }
 
+# ============================================================================
+# PHASE 6c: View grants
+# ============================================================================
+# Per-view SELECT grants to the roles named in the JSON `grants[]` block
+# (currently NORTHBRIDGE_ANALYST). The view module does not apply grants
+# itself, so this resource issues them directly under the view owner alias.
+# ----------------------------------------------------------------------------
 resource "snowflake_grant_privileges_to_account_role" "view_grants" {
   for_each = local.view_grant_pairs
 
@@ -351,5 +431,8 @@ resource "snowflake_grant_privileges_to_account_role" "view_grants" {
     object_name = "\"${each.value.database}\".\"${each.value.schema}\".\"${each.value.name}\""
   }
 
-  depends_on = [module.views]
+  depends_on = [
+    module.views,
+    snowflake_account_role.northbridge_analyst,
+  ]
 }
