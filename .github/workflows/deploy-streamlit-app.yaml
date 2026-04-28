@@ -74,10 +74,21 @@ jobs:
           "$SNOWSQL_DEST/snowsql" --version
 
       # ── 3. Write RSA private key to disk ──────────────────────
+      # GitHub secrets preserve newlines, so we write the PEM verbatim.
+      # (HCP Terraform env vars strip newlines and need base64 — GitHub does
+      # not, so do not base64-decode here.) Routing through env: keeps the
+      # value out of the rendered command line.
       - name: Write Snowflake private key
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
         run: |
-          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" | base64 -d > /tmp/snowflake_key.p8
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > /tmp/snowflake_key.p8
           chmod 600 /tmp/snowflake_key.p8
+          # Sanity check — fail early if the secret is not a PEM private key
+          head -1 /tmp/snowflake_key.p8 | grep -q 'BEGIN .*PRIVATE KEY' \
+            || { echo "::error::SNOWFLAKE_PRIVATE_KEY is not a PEM-formatted private key"; exit 1; }
 
       # ── 4. Fetch latest code from GitHub into Snowflake ───────
       - name: Fetch Git repository in Snowflake
