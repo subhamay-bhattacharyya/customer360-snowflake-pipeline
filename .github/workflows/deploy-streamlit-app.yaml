@@ -47,7 +47,7 @@ on:
 
 jobs:
   deploy:
-    name: Refresh Snowflake Git Repo & Verify Streamlit
+    name: Refresh Streamlit
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
 
@@ -72,6 +72,20 @@ jobs:
           bash snowsql.bash
           echo "$SNOWSQL_DEST" >> "$GITHUB_PATH"
           "$SNOWSQL_DEST/snowsql" --version
+
+      # ── 2b. Verify required GitHub vars ──────────────────────
+      # Fails the job with a clear message if any var is missing, instead of
+      # letting snowsql later report a generic "Account must be specified".
+      - name: Verify Snowflake connection vars
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER:    ${{ vars.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE:    ${{ vars.SNOWFLAKE_ROLE }}
+        run: |
+          set -euo pipefail
+          : "${SNOWFLAKE_ACCOUNT:?missing GitHub var SNOWFLAKE_ACCOUNT (env: ${{ inputs.environment }}) — set it under Settings → Environments → ${{ inputs.environment }} → Variables}"
+          : "${SNOWFLAKE_USER:?missing GitHub var SNOWFLAKE_USER (env: ${{ inputs.environment }})}"
+          : "${SNOWFLAKE_ROLE:?missing GitHub var SNOWFLAKE_ROLE (env: ${{ inputs.environment }})}"
 
       # ── 3. Write RSA private key to disk ──────────────────────
       # GitHub secrets preserve newlines, so we write the PEM verbatim.
