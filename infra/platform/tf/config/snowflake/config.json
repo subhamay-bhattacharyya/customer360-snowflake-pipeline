@@ -209,7 +209,7 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "SILVER",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "1 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "clean_northbridge.tpl",
@@ -229,74 +229,7 @@
         },
         {
           "name": "GOLD",
-          "comment": "Modelled data layer for analytics and dashboards",
-          "functions": {
-            "prominent_index": {
-              "name": "PROMINENT_INDEX",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "JAVASCRIPT",
-              "return_type": "VARCHAR",
-              "arguments": [
-                {
-                  "name": "credit_score",
-                  "type": "NUMBER"
-                },
-                {
-                  "name": "risk_rating",
-                  "type": "VARCHAR"
-                }
-              ],
-              "body_template_file": "templates/functions/prominent_index.tpl",
-              "comment": "Returns the dominant customer risk index",
-              "grants": [
-                {
-                  "role_name": "NORTHBRIDGE_ANALYST",
-                  "privileges": [
-                    "USAGE"
-                  ]
-                }
-              ]
-            },
-            "three_sub_index_criteria": {
-              "name": "THREE_SUB_INDEX_CRITERIA",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "SQL",
-              "return_type": "BOOLEAN",
-              "arguments": [
-                {
-                  "name": "income_tier",
-                  "type": "VARCHAR"
-                },
-                {
-                  "name": "credit_tier",
-                  "type": "VARCHAR"
-                },
-                {
-                  "name": "kyc_status",
-                  "type": "VARCHAR"
-                }
-              ],
-              "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
-              "comment": "Customer scoring evaluation logic returns true if 3 sub-criteria met"
-            },
-            "get_int": {
-              "name": "GET_INT",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "SQL",
-              "return_type": "NUMBER",
-              "arguments": [
-                {
-                  "name": "val",
-                  "type": "VARIANT"
-                }
-              ],
-              "body": "SELECT val::NUMBER",
-              "comment": "Helper safely casts VARIANT to NUMBER"
-            }
-          }
+          "comment": "Modelled data layer for analytics and dashboards"
         },
         {
           "name": "STREAMLIT",

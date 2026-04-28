@@ -2,18 +2,18 @@ name: Terraform CI
 run-name: Build run by ${{ github.actor }} on ${{ github.ref_name }}
 
 on:
-  push:
-    branches:
-      - 'main'
-      - 'feature/**'
-      - 'bug/**'
-    paths:
-      - infra/platform/tf/**
-      - .github/workflows/ci.yaml
-  pull_request:
-    branches: [main]
-    paths:
-      - infra/platform/tf/**
+  # push:
+  #   branches:
+  #     - 'main'
+  #     - 'feature/**'
+  #     - 'bug/**'
+  #   paths:
+  #     - infra/platform/tf/**
+  #     - .github/workflows/ci.yaml
+  # pull_request:
+  #   branches: [main]
+  #   paths:
+  #     - infra/platform/tf/**
   workflow_dispatch:
 
 permissions:
