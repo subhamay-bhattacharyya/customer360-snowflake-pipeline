@@ -21,11 +21,14 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
 
 ### Features
 
 - Add deploy workflow for Streamlit app and update Terraform workflows
 - Add Streamlit app deployment step and create dashboard script
+- Add Terraform Apply workflow and new SQL views for CUST360 NorthBridge
+- Implement API integrations and enhance Streamlit deployment workflow
 
 ### Refactor
 
