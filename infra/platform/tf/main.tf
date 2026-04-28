@@ -382,6 +382,24 @@ resource "snowflake_grant_privileges_to_account_role" "analyst_schema_usage" {
   depends_on = [module.database_schemas]
 }
 
+# CREATE VIEW on GOLD — granted by schema owner (DB_PROVISIONER) to the
+# data_object_provisioner role used by module.views. The schema-grants module
+# has no create_view_roles knob, so this issues it directly. Without this,
+# `terraform apply` after a destroy fails with "Insufficient privileges to
+# operate on schema 'GOLD'" when module.views tries to create the views.
+resource "snowflake_grant_privileges_to_account_role" "data_object_create_view" {
+  provider = snowflake.db_provisioner
+
+  account_role_name = var.data_object_provisioner_role
+  privileges        = ["CREATE VIEW"]
+
+  on_schema {
+    schema_name = "\"${upper("${var.project_code}_NORTHBRIDGE_DATABASE")}\".\"GOLD\""
+  }
+
+  depends_on = [module.database_schemas]
+}
+
 # ============================================================================
 # PHASE 6b: Views (GOLD layer)
 # ============================================================================
@@ -408,7 +426,10 @@ module "views" {
     }
   }
 
-  depends_on = [module.dynamic_table_gold]
+  depends_on = [
+    module.dynamic_table_gold,
+    snowflake_grant_privileges_to_account_role.data_object_create_view,
+  ]
 }
 
 # ============================================================================

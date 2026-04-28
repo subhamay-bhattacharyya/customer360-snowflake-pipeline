@@ -47,7 +47,7 @@ on:
 
 jobs:
   deploy:
-    name: Refresh Streamlit
+    name: Refresh App
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
 
