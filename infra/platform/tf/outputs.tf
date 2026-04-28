@@ -111,6 +111,14 @@ output "storage_integrations" {
 }
 
 # ----------------------------------------------------------------------------
+# 4b. API Integrations
+# ----------------------------------------------------------------------------
+output "api_integration_names" {
+  description = "Names of the created Snowflake API integrations, keyed by config key."
+  value       = module.api_integrations.api_integration_names
+}
+
+# ----------------------------------------------------------------------------
 # 5. Stages
 # ----------------------------------------------------------------------------
 output "stages" {
@@ -140,4 +148,17 @@ output "snowpipes" {
 output "dynamic_tables" {
   description = "Map of dynamic tables to their details"
   value       = module.dynamic_table
+}
+
+# ----------------------------------------------------------------------------
+# 9. Views
+# ----------------------------------------------------------------------------
+output "view_names" {
+  description = "Map of view config keys to Snowflake view names."
+  value       = module.views.view_names
+}
+
+output "view_fully_qualified_names" {
+  description = "Map of view config keys to fully-qualified Snowflake view names."
+  value       = module.views.view_fully_qualified_names
 }

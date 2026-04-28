@@ -133,6 +133,22 @@ module "storage_integrations" {
 }
 
 # ----------------------------------------------------------------------------
+# • 2.4b API Integrations
+# Account-level integration object (no DB/schema dependency). Currently no
+# downstream consumers in the pipeline; staged for future Streamlit-deploy
+# work. Pinned to a feature branch until the module publishes a stable tag.
+# ----------------------------------------------------------------------------
+module "api_integrations" {
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-api-integration.git?ref=feature/TFMOD-0001-feat-initial-module-imple"
+
+  providers = {
+    snowflake = snowflake.ingest_object_provisioner
+  }
+
+  api_integration_configs = local.api_integrations
+}
+
+# ----------------------------------------------------------------------------
 # • 2.5 Stages
 # ----------------------------------------------------------------------------
 module "stage" {
@@ -291,4 +307,49 @@ module "dynamic_table_gold" {
   depends_on = [
     module.dynamic_table
   ]
+}
+
+# ============================================================================
+# PHASE 6: Views (GOLD layer)
+# ============================================================================
+# Views read from GOLD CUST360_* dynamic tables, so they must be created after
+# module.dynamic_table_gold. The view module does not apply grants, so grants
+# are issued separately below via snowflake_grant_privileges_to_account_role
+# (same workaround pattern as table_grants).
+# ----------------------------------------------------------------------------
+module "views" {
+  source = "git::https://github.com/subhamay-bhattacharyya-tf/terraform-snowflake-view.git?ref=feature/TFMOD-0007-feat-initial-module-imple"
+
+  providers = {
+    snowflake = snowflake.data_object_provisioner
+  }
+
+  views = {
+    for k, v in local.views : k => {
+      name      = v.name
+      database  = v.database
+      schema    = v.schema
+      statement = v.statement
+      is_secure = v.is_secure
+      comment   = v.comment
+    }
+  }
+
+  depends_on = [module.dynamic_table_gold]
+}
+
+resource "snowflake_grant_privileges_to_account_role" "view_grants" {
+  for_each = local.view_grant_pairs
+
+  provider = snowflake.data_object_provisioner
+
+  account_role_name = each.value.role_name
+  privileges        = each.value.privileges
+
+  on_schema_object {
+    object_type = "VIEW"
+    object_name = "\"${each.value.database}\".\"${each.value.schema}\".\"${each.value.name}\""
+  }
+
+  depends_on = [module.views]
 }

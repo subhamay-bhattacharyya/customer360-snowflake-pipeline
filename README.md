@@ -39,7 +39,7 @@ A Terraform-managed Snowflake data lake that ingests 25,000 nested JSON banking 
 - Transaction trend analysis by channel, segment, and region
 - AML/KYC compliance risk scoring and flagging
 
-All AWS and Snowflake infrastructure is provisioned via **Terraform** with a config-driven approach — resource names come from `input-jsons/` and are never hardcoded in `.tf` files.
+All AWS and Snowflake infrastructure is provisioned via **Terraform** with a config-driven approach — resource names come from `infra/platform/tf/config/` and are never hardcoded in `.tf` files.
 
 ---
 
@@ -68,35 +68,62 @@ GOLD    →  DIM_CUSTOMER · DIM_BRANCH · DIM_PRODUCT · DIM_DATE
 STREAMLIT → Customer 360 Dashboard  (5 tabs · sidebar filters)
 ```
 
-### Terraform Provisioning — 5 Phases
+### Terraform Provisioning — 6 Phases
 
 ```text
 Phase 1 ── AWS Resources
-           module.s3          → S3 bucket (landing zone + Terraform state)
-           module.iam_role    → IAM role (placeholder trust policy)
+           module.s3          → S3 bucket (landing zone)
+           module.iam_role    → IAM role (trust policy computed from live storage
+                                integration output; account-root placeholder on
+                                first create)
 
 Phase 2 ── Snowflake Resources (strict dependency order)
-           module.warehouse           → LOAD_WH · TRANSFORM_WH · STREAMLIT_WH · ADHOC_WH
-           module.database_schemas    → NORTHBRIDGE_DATABASE + 4 schemas
-           module.file_formats        → JSON_FILE_FORMAT
+           module.warehouse            → LOAD_WH · TRANSFORM_WH · STREAMLIT_WH · ADHOC_WH
+           module.database_schemas     → NORTHBRIDGE_DATABASE + 4 schemas
+           module.file_formats         → JSON_FILE_FORMAT
            module.storage_integrations → S3_STORAGE_INTEGRATION
-           module.stage               → RAW_EXTERNAL_STG · RAW_INTERNAL_STG
-           module.table               → BRONZE.RAW_NORTHBRIDGE
+           module.api_integrations     → GitHub API integration (account-level;
+                                         currently 0 resources — see "API
+                                         Integrations" caveat below)
+           module.stage                → RAW_EXTERNAL_STG · RAW_INTERNAL_STG · STREAMLIT_STG
+           module.table                → BRONZE.RAW_NORTHBRIDGE
 
-Phase 3 ── AWS Trust Policy Update
-           module.aws_iam_role_final  → Updates IAM trust with Snowflake ARN + external ID
-                                        (enable_trust_policy_update=true)
+Phase 3 ── AWS Trust Policy Reconcile
+           module.aws_iam_role_final  → Re-pushes the live STORAGE_AWS_IAM_USER_ARN /
+                                        STORAGE_AWS_EXTERNAL_ID to the IAM role on
+                                        every apply (no manual flag — fires whenever
+                                        a storage integration is configured)
 
 Phase 4 ── Snowpipes — BRONZE layer
            module.pipe                → RAW_NORTHBRIDGE_PIPE (auto_ingest=true)
            module.s3_notification     → S3 event → SQS wiring
-                                        (enable_snowpipe_creation=true)
+                                        (enable_snowpipe_creation=true; default true,
+                                        set false only on the very first apply)
 
 Phase 5 ── Dynamic Tables — SILVER + GOLD layers
            module.dynamic_table       → SILVER.CLEAN_NORTHBRIDGE_DT
-                                        GOLD.DIM_CUSTOMER · DIM_PRODUCT · DIM_BRANCH
+           module.dynamic_table_gold  → GOLD.DIM_CUSTOMER · DIM_PRODUCT · DIM_BRANCH
                                         GOLD.FACT_TRANSACTIONS · FACT_LOANS · FACT_ACCOUNT_BALANCES
+
+Phase 6 ── Views — GOLD layer
+           module.views               → V_KPI_SUMMARY · V_SEGMENT_STATS · V_LOAN_PORTFOLIO
+                                        V_MONTHLY_TXN_TRENDS · V_REGIONAL_PERF · V_RISK_DISTRIBUTION
+                                        + snowflake_grant_privileges_to_account_role.view_grants
+                                        (NORTHBRIDGE_ANALYST SELECT)
 ```
+
+> **Streams and tasks are not used.** Ingestion is Snowpipe (auto-ingest from S3) and
+> downstream refresh is handled by Dynamic Tables (`target_lag = "downstream"`).
+>
+> **Module pin caveats.** `module.api_integrations` and `module.views` are pinned to
+> feature branches (`feature/TFMOD-0001-…` and `feature/TFMOD-0007-…` respectively)
+> until those upstream modules cut stable tags. The view module additionally needs
+> its `versions.tf` upgraded from `Snowflake-Labs/snowflake < 1.0.0` to
+> `snowflakedb/snowflake >= 1.0.0` before `terraform init` will resolve. The
+> API-integration module currently filters out the GitHub `git_https_api` entry
+> because `snowflake_api_integration` does not accept that provider value — a Git
+> integration (`snowflake_git_repository`) is the correct resource for the
+> Streamlit-deploy use case and is not yet wired.
 
 ---
 
@@ -113,18 +140,27 @@ customer360-snowflake-pipeline/
 │   ├── keypair/                           # RSA keys — GITIGNORED
 │   │   ├── snowflake_key.p8               # Private key — never commit
 │   │   └── snowflake_key.pub              # Public key
-│   └── tf/                               # Terraform root module
-│       ├── main.tf                        # 5-phase orchestration
+│   └── tf/                                # Terraform root module
+│       ├── main.tf                        # 6-phase orchestration
 │       ├── variables.tf
 │       ├── locals.tf
 │       ├── outputs.tf
-│       ├── backend.tf                     # S3 + DynamoDB remote state
+│       ├── backend.tf                     # HCP Terraform remote state
 │       ├── providers-aws.tf
 │       ├── providers-snowflake.tf         # Multiple provider aliases
 │       ├── versions.tf
-│       ├── debug-outputs.tf               # Remove before merging to main
 │       ├── modules/
-│       │   └── iam_role_final/            # Local IAM trust policy update module
+│       │   └── iam_role_final/            # Local module — re-pushes IAM trust at apply time
+│       ├── config/                        # JSON-driven resource definitions
+│       │   ├── aws/
+│       │   │   ├── config.json
+│       │   │   └── {devl,test,prod}/config.json
+│       │   └── snowflake/
+│       │       ├── config.json
+│       │       ├── config.backup.json     # Reference copy — do not overwrite
+│       │       └── {devl,test,prod}/config.json
+│       ├── environments/
+│       │   └── {devl,test,prod}/terraform.tfvars
 │       ├── templates/
 │       │   ├── bucket-policy/
 │       │   │   └── s3-bucket-policy.tpl
@@ -136,18 +172,18 @@ customer360-snowflake-pipeline/
 │       │   │   ├── fact_transactions.tpl       # GOLD transaction fact
 │       │   │   ├── fact_loans.tpl              # GOLD loan fact
 │       │   │   └── fact_account_balances.tpl   # GOLD account balance fact
+│       │   ├── views/
+│       │   │   ├── v_kpi_summary.tpl           # GOLD KPI summary view
+│       │   │   ├── v_loan_portfolio.tpl        # GOLD loan portfolio view
+│       │   │   ├── v_monthly_txn_trends.tpl    # GOLD monthly transaction trends
+│       │   │   ├── v_regional_perf.tpl         # GOLD regional performance
+│       │   │   ├── v_risk_distribution.tpl     # GOLD risk distribution
+│       │   │   └── v_segment_stats.tpl         # GOLD customer segment stats
 │       │   └── snowpipe-copy-statements/
 │       │       └── raw_northbridge_copy.tpl
 │       └── tests/
 │           ├── config_validation.tftest.hcl
 │           └── platform_validation.tftest.hcl
-│
-├── input-jsons/
-│   ├── aws/
-│   │   └── config.json                   # S3, IAM, trust block
-│   └── snowflake/
-│       ├── config.json                   # All Snowflake objects
-│       └── config.backup.json            # Reference copy — do not overwrite
 │
 ├── snowflake-ddl/                        # Reference DDL only — not run by Terraform
 │   ├── 00_account/
@@ -157,7 +193,6 @@ customer360-snowflake-pipeline/
 │   ├── 04_storage/
 │   ├── 05_schemas/
 │   ├── 06_pipes/
-│   ├── 07_tasks/
 │   ├── 08_functions/
 │   ├── 09_procedures/
 │   └── scripts/
@@ -474,8 +509,8 @@ These live in `infra/platform/tf/environments/{devl,test,prod}/terraform.tfvars`
 | `data_object_provisioner_role` | Role for table/file format ops | `DATA_OBJECT_ADMIN` |
 | `ingest_object_provisioner_role` | Role for stage/pipe ops | `INGEST_ADMIN` |
 | `snowflake_warehouse` | Default warehouse for Terraform ops | `UTIL_WH` |
-| `aws_config_path` | Path to AWS config JSON | `input-jsons/aws/devl/config.json` |
-| `snowflake_config_path` | Path to Snowflake config JSON | `input-jsons/snowflake/devl/config.json` |
+| `aws_config_path` | Path to AWS config JSON | `config/aws/devl/config.json` |
+| `snowflake_config_path` | Path to Snowflake config JSON | `config/snowflake/devl/config.json` |
 | `project_code` | Short prefix for resource naming | `cust360sf` |
 
 ---
@@ -499,7 +534,10 @@ export TF_VAR_snowflake_user="GITHUB_ACTIONS_USER"
 
 ### 5. Deploy Infrastructure
 
-Infrastructure is deployed in three passes due to the IAM trust policy bootstrap requirement.
+The IAM trust policy is reconciled at apply time from the live storage integration
+output — there is no manual `DESC INTEGRATION` / config-edit step. On the very first
+apply Snowpipe is gated off so it does not race the trust sync; every subsequent
+apply runs in one pass.
 
 ```bash
 cd infra/platform/tf
@@ -507,30 +545,21 @@ terraform init
 terraform validate
 terraform fmt -recursive
 
-# Pass 1 — Create all resources with placeholder IAM trust policy
-terraform apply -var-file="terraform.tfvars" -var="enable_trust_policy_update=false"
+# Pass A — fresh bootstrap only. Creates core infra; IAM trust is auto-reconciled
+# from the live storage integration output. Snowpipe is gated off so it doesn't
+# race the trust sync on the first apply.
+terraform apply -var-file="terraform.tfvars" -var="enable_snowpipe_creation=false"
+
+# Pass B — every subsequent apply. Default for enable_snowpipe_creation is true,
+# so no flag is needed. This enables Snowpipe + S3 event notification.
+terraform apply -var-file="terraform.tfvars"
 ```
 
-After Pass 1, retrieve the Snowflake storage integration values:
-
-```sql
-DESC INTEGRATION S3_STORAGE_INTEGRATION;
--- Copy STORAGE_AWS_IAM_USER_ARN  → trust.snowflake_principal_arn in aws/config.json
--- Copy STORAGE_AWS_EXTERNAL_ID   → trust.snowflake_external_id   in aws/config.json
-```
-
-Update `input-jsons/aws/config.json` with these values, then:
-
-```bash
-# Pass 2 — Update IAM trust policy with real Snowflake values
-terraform apply -var-file="terraform.tfvars" -var="enable_trust_policy_update=true"
-
-# Verify storage integration is working
-# Run in Snowflake: SELECT SYSTEM$VALIDATE_STORAGE_INTEGRATION('S3_STORAGE_INTEGRATION');
-
-# Pass 3 — Enable Snowpipe auto-ingest
-terraform apply -var-file="terraform.tfvars" -var="enable_snowpipe_creation=true"
-```
+> Optional sanity check after Pass A:
+>
+> ```sql
+> SELECT SYSTEM$VALIDATE_STORAGE_INTEGRATION('S3_STORAGE_INTEGRATION');
+> ```
 
 ---
 
@@ -580,8 +609,8 @@ Upload `app/northbridge_dashboard.py` via the Snowflake console:
 | --- | --- | --- |
 | `DB_PROVISIONER` | `CREATE DATABASE` on account | `module.database_schemas` |
 | `WAREHOUSE_PROVISIONER` | `CREATE WAREHOUSE`, `MONITOR USAGE` on account | `module.warehouse` |
-| `DATA_OBJECT_PROVISIONER` | `CREATE TABLE`, `CREATE FILE FORMAT`, `CREATE DYNAMIC TABLE`, `CREATE VIEW`, `CREATE FUNCTION` on schemas | `module.table`, `module.file_formats`, `module.dynamic_table` |
-| `INGEST_OBJECT_PROVISIONER` | `CREATE INTEGRATION` on account; `CREATE STAGE`, `CREATE PIPE` on schemas | `module.storage_integrations`, `module.stage`, `module.pipe` |
+| `DATA_OBJECT_PROVISIONER` | `CREATE TABLE`, `CREATE FILE FORMAT`, `CREATE DYNAMIC TABLE`, `CREATE VIEW`, `CREATE FUNCTION` on schemas | `module.table`, `module.file_formats`, `module.dynamic_table`, `module.dynamic_table_gold`, `module.views` |
+| `INGEST_OBJECT_PROVISIONER` | `CREATE INTEGRATION` on account; `CREATE STAGE`, `CREATE PIPE` on schemas | `module.storage_integrations`, `module.api_integrations`, `module.stage`, `module.pipe` |
 | `NORTHBRIDGE_ANALYST` | `SELECT` on GOLD tables/views; `USAGE` on GOLD functions | Dashboard users |
 
 ### Warehouses

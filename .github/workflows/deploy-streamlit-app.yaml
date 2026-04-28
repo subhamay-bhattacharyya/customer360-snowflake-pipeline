@@ -2,7 +2,7 @@ name: Deploy Streamlit App to Snowflake
 description: Deploy Streamlit app to Snowflake when app files change
 
 on:
-  workflow_dispatch:                    # manual trigger only
+  workflow_dispatch:                    # manual trigger
     inputs:
       environment:
         description: Target environment to deploy
@@ -22,6 +22,27 @@ on:
         description: Snowflake schema
         type: string
         required: true
+        default: STREAMLIT
+  workflow_call:                        # callable from other workflows (e.g. terraform-apply)
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: string
+        required: true
+      database:
+        description: Snowflake database
+        type: string
+        required: false
+        default: CUST360_NORTHBRIDGE_DATABASE
+      warehouse:
+        description: Snowflake warehouse
+        type: string
+        required: false
+        default: STREAMLIT_WH
+      schema:
+        description: Snowflake schema
+        type: string
+        required: false
         default: STREAMLIT
 
 jobs:

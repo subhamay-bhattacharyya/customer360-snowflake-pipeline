@@ -29,3 +29,11 @@ jobs:
       tf-vars-file: environments/${{ github.event.inputs.environment }}/terraform.tfvars
     secrets:
       tfc-token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO_SNOWFLAKE_ORG }}
+
+  deploy-streamlit-app:
+    name: Deploy Streamlit App
+    needs: terraform-deploy-platform
+    uses: ./.github/workflows/deploy-streamlit-app.yaml
+    with:
+      environment: ${{ github.event.inputs.environment }}
+    secrets: inherit

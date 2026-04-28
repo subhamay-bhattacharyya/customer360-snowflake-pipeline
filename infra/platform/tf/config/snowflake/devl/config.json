@@ -10,6 +10,17 @@
       "comment": "[cust360] S3 storage integration for NorthBridge raw data bucket"
     }
   },
+  "api_integrations": {
+    "github": {
+      "name": "GITHUB_API_INT",
+      "api_provider": "git_https_api",
+      "api_allowed_prefixes": [
+        "https://github.com/subhamay-bhattacharyya/customer360-snowflake-pipeline"
+      ],
+      "enabled": true,
+      "comment": "[cust360] API integration for the customer360-snowflake-pipeline GitHub repo used to deploy Streamlit in Snowflake apps"
+    }
+  },
   "warehouses": {
     "load_wh": {
       "name": "LOAD_WH",
