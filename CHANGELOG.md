@@ -12,9 +12,12 @@ All notable changes to this project will be documented in this file.
 - Update dynamic tables to include additional primary branch and customer details
 - Remove static trust block and reconcile IAM trust policy at apply time
 - Remove streams and tasks configuration, update documentation for Snowpipe and Dynamic Tables
+- Update Streamlit deployment workflow to handle Snowflake private key securely
+- Rename job to Refresh Streamlit and add verification for Snowflake connection variables
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
@@ -32,6 +35,7 @@ All notable changes to this project will be documented in this file.
 - Implement API integrations and enhance Streamlit deployment workflow
 - Add Terraform Apply workflow for environment deployment
 - Add NORTHBRIDGE_ANALYST role and associated grants for GOLD views
+- Enhance SnowSQL installation process in Streamlit deployment workflow
 
 ### Refactor
 
