@@ -47,83 +47,101 @@ All AWS and Snowflake infrastructure is provisioned via **Terraform** with a con
 
 ### Data Pipeline
 
-```text
-S3 (northbridge-raw-data/raw-data/json/)
-        │
-        ▼  s3:ObjectCreated:* → SQS event notification
-        │
-        ▼  Snowpipe auto-ingest (RAW_NORTHBRIDGE_PIPE)
-BRONZE  →  RAW_NORTHBRIDGE          (VARIANT + audit columns, 25,000 records)
-        │
-        ▼  Dynamic Table auto-refresh (target_lag = "downstream")
-SILVER  →  CLEAN_NORTHBRIDGE_DT    (Dynamic Table — typed & cleansed)
-        │
-        ▼  Dynamic Tables + UDFs (PROMINENT_INDEX, THREE_SUB_INDEX_CRITERIA, GET_INT)
-GOLD    →  DIM_CUSTOMER · DIM_BRANCH · DIM_PRODUCT · DIM_DATE
-           FACT_TRANSACTIONS · FACT_LOANS · FACT_ACCOUNT_BALANCES
-           V_KPI_SUMMARY · V_SEGMENT_STATS · V_LOAN_PORTFOLIO
-           V_MONTHLY_TXN_TRENDS · V_REGIONAL_PERF · V_RISK_DISTRIBUTION
-        │
-        ▼  Streamlit in Snowflake (STREAMLIT_WH)
-STREAMLIT → Customer 360 Dashboard  (5 tabs · sidebar filters)
+```mermaid
+flowchart TD
+    S3[("S3<br/>northbridge-raw-data/raw-data/json/")]
+    SQS{{"SQS event notification<br/>s3:ObjectCreated:*"}}
+    PIPE["Snowpipe auto-ingest<br/>RAW_NORTHBRIDGE_PIPE"]
+
+    subgraph BRONZE["BRONZE — Raw"]
+      RAW["RAW_NORTHBRIDGE<br/>VARIANT + audit columns<br/>25,000 records"]
+    end
+
+    subgraph SILVER["SILVER — Cleansed"]
+      CLEAN["CLEAN_NORTHBRIDGE_DT<br/>Dynamic Table — typed &amp; cleansed"]
+    end
+
+    subgraph GOLD["GOLD — Curated"]
+      DIMS["Dimensions<br/>DIM_CUSTOMER · DIM_BRANCH<br/>DIM_PRODUCT · DIM_DATE"]
+      FACTS["Facts<br/>FACT_TRANSACTIONS · FACT_LOANS<br/>FACT_ACCOUNT_BALANCES"]
+      VIEWS["Views<br/>V_KPI_SUMMARY · V_SEGMENT_STATS<br/>V_LOAN_PORTFOLIO · V_MONTHLY_TXN_TRENDS<br/>V_REGIONAL_PERF · V_RISK_DISTRIBUTION"]
+    end
+
+    subgraph SERVE["STREAMLIT — Serving"]
+      DASH["Customer 360 Dashboard<br/>5 tabs · sidebar filters"]
+    end
+
+    S3 -->|"s3:ObjectCreated:*"| SQS
+    SQS --> PIPE
+    PIPE --> RAW
+    RAW -->|"Dynamic Table auto-refresh<br/>target_lag = downstream"| CLEAN
+    CLEAN -->|"Dynamic Tables + UDFs<br/>PROMINENT_INDEX · THREE_SUB_INDEX_CRITERIA · GET_INT"| DIMS
+    CLEAN --> FACTS
+    DIMS --> VIEWS
+    FACTS --> VIEWS
+    VIEWS -->|"Streamlit in Snowflake<br/>STREAMLIT_WH"| DASH
 ```
 
 ### Terraform Provisioning — 6 Phases
 
-```text
-Phase 1 ── AWS Resources
-           module.s3          → S3 bucket (landing zone)
-           module.iam_role    → IAM role (trust policy computed from live storage
-                                integration output; account-root placeholder on
-                                first create)
+```mermaid
+flowchart TD
+    subgraph P1["Phase 1 — AWS Resources"]
+      P1A["module.s3<br/>S3 bucket (landing zone)"]
+      P1B["module.iam_role<br/>IAM role — trust policy computed from<br/>live storage integration output;<br/>account-root placeholder on first create"]
+    end
 
-Phase 2 ── Snowflake Resources (strict dependency order)
-           module.warehouse            → LOAD_WH · TRANSFORM_WH · STREAMLIT_WH · ADHOC_WH
-           module.database_schemas     → NORTHBRIDGE_DATABASE + 4 schemas
-           module.file_formats         → JSON_FILE_FORMAT
-           module.storage_integrations → S3_STORAGE_INTEGRATION
-           module.api_integrations     → GitHub API integration (account-level;
-                                         currently 0 resources — see "API
-                                         Integrations" caveat below)
-           module.stage                → RAW_EXTERNAL_STG · RAW_INTERNAL_STG · STREAMLIT_STG
-           module.table                → BRONZE.RAW_NORTHBRIDGE
+    subgraph P2["Phase 2 — Snowflake Resources (strict dependency order)"]
+      direction TB
+      P2A["module.warehouse<br/>LOAD_WH · TRANSFORM_WH · STREAMLIT_WH · ADHOC_WH"]
+      P2B["module.database_schemas<br/>NORTHBRIDGE_DATABASE + 4 schemas"]
+      P2C["module.file_formats<br/>JSON_FILE_FORMAT"]
+      P2D["module.storage_integrations<br/>S3_STORAGE_INTEGRATION"]
+      P2E["module.api_integrations<br/>GitHub API integration — account-level;<br/>currently 0 resources (see caveat below)"]
+      P2F["module.stage<br/>RAW_EXTERNAL_STG · RAW_INTERNAL_STG · STREAMLIT_STG"]
+      P2G["module.table<br/>BRONZE.RAW_NORTHBRIDGE"]
+      P2A --> P2B --> P2C --> P2D --> P2E --> P2F --> P2G
+    end
 
-Phase 3 ── AWS Trust Policy Reconcile
-           module.aws_iam_role_final  → Re-pushes the live STORAGE_AWS_IAM_USER_ARN /
-                                        STORAGE_AWS_EXTERNAL_ID to the IAM role on
-                                        every apply (no manual flag — fires whenever
-                                        a storage integration is configured)
+    subgraph P3["Phase 3 — AWS Trust Policy Reconcile"]
+      P3A["module.aws_iam_role_final<br/>Re-pushes live STORAGE_AWS_IAM_USER_ARN /<br/>STORAGE_AWS_EXTERNAL_ID to the IAM role<br/>on every apply (no manual flag — fires<br/>whenever a storage integration is configured)"]
+    end
 
-Phase 4 ── Snowpipes — BRONZE layer
-           module.pipe                → RAW_NORTHBRIDGE_PIPE (auto_ingest=true)
-           module.s3_notification     → S3 event → SQS wiring
-                                        (enable_snowpipe_creation=true; default true,
-                                        set false only on the very first apply)
+    subgraph P4["Phase 4 — Snowpipes (BRONZE layer)"]
+      P4A["module.pipe<br/>RAW_NORTHBRIDGE_PIPE (auto_ingest=true)"]
+      P4B["module.s3_notification<br/>S3 event → SQS wiring<br/>(enable_snowpipe_creation default true;<br/>set false only on the very first apply)"]
+      P4A --> P4B
+    end
 
-Phase 5 ── Dynamic Tables — SILVER + GOLD layers
-           module.dynamic_table       → SILVER.CLEAN_NORTHBRIDGE_DT
-           module.dynamic_table_gold  → GOLD.DIM_CUSTOMER · DIM_PRODUCT · DIM_BRANCH
-                                        GOLD.FACT_TRANSACTIONS · FACT_LOANS · FACT_ACCOUNT_BALANCES
+    subgraph P5["Phase 5 — Dynamic Tables (SILVER + GOLD layers)"]
+      direction TB
+      P5A["module.dynamic_table<br/>SILVER.CLEAN_NORTHBRIDGE_DT"]
+      P5B["module.dynamic_table_gold<br/>GOLD.DIM_CUSTOMER · DIM_PRODUCT · DIM_BRANCH<br/>GOLD.FACT_TRANSACTIONS · FACT_LOANS · FACT_ACCOUNT_BALANCES"]
+      P5A --> P5B
+    end
 
-Phase 6 ── Views — GOLD layer
-           module.views               → V_KPI_SUMMARY · V_SEGMENT_STATS · V_LOAN_PORTFOLIO
-                                        V_MONTHLY_TXN_TRENDS · V_REGIONAL_PERF · V_RISK_DISTRIBUTION
-                                        + snowflake_grant_privileges_to_account_role.view_grants
-                                        (NORTHBRIDGE_ANALYST SELECT)
+    subgraph P6["Phase 6 — Views (GOLD layer)"]
+      direction TB
+      P6A["module.views<br/>V_KPI_SUMMARY · V_SEGMENT_STATS · V_LOAN_PORTFOLIO<br/>V_MONTHLY_TXN_TRENDS · V_REGIONAL_PERF · V_RISK_DISTRIBUTION"]
+      P6B["snowflake_grant_privileges_to_account_role.view_grants<br/>NORTHBRIDGE_ANALYST SELECT"]
+      P6A --> P6B
+    end
+
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
 ```
 
-> **Streams and tasks are not used.** Ingestion is Snowpipe (auto-ingest from S3) and
-> downstream refresh is handled by Dynamic Tables (`target_lag = "downstream"`).
+> [!NOTE]
+> **Streams and tasks are not used.** Ingestion is handled by Snowpipe
+> (auto-ingest from S3); downstream refresh is handled by Dynamic Tables
+> with `target_lag = "downstream"`.
+> [!WARNING]
+> **Module pin caveats** — known issues with the upstream modules pinned
+> by this root module:
 >
-> **Module pin caveats.** `module.api_integrations` and `module.views` are pinned to
-> feature branches (`feature/TFMOD-0001-…` and `feature/TFMOD-0007-…` respectively)
-> until those upstream modules cut stable tags. The view module additionally needs
-> its `versions.tf` upgraded from `Snowflake-Labs/snowflake < 1.0.0` to
-> `snowflakedb/snowflake >= 1.0.0` before `terraform init` will resolve. The
-> API-integration module currently filters out the GitHub `git_https_api` entry
-> because `snowflake_api_integration` does not accept that provider value — a Git
-> integration (`snowflake_git_repository`) is the correct resource for the
-> Streamlit-deploy use case and is not yet wired.
+> | Module | Pin | Issue |
+> | --- | --- | --- |
+> | `module.api_integrations` | `feature/TFMOD-0001-…` | Awaiting a stable tag. Currently filters out the GitHub `git_https_api` entry because `snowflake_api_integration` does not accept that provider value. The correct resource for the Streamlit-deploy use case is a Git integration (`snowflake_git_repository`) — **not yet wired**. |
+> | `module.views` | `feature/TFMOD-0007-…` | Awaiting a stable tag. Its `versions.tf` must be upgraded from `Snowflake-Labs/snowflake < 1.0.0` to `snowflakedb/snowflake >= 1.0.0` before `terraform init` will resolve. |
 
 ---
 
@@ -131,77 +149,103 @@ Phase 6 ── Views — GOLD layer
 
 ```text
 customer360-snowflake-pipeline/
-├── CLAUDE.md                              # Claude Code project context
 ├── README.md
-├── PROMPT.md                              # Claude Code prompt for config generation
-├── CHANGELOG.md
+├── CLAUDE.md                                   # Claude Code project context
+├── CHANGELOG.md                                # Auto-generated by git-cliff
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── LICENSE
+├── PROMPT.md                                   # Claude Code prompt for config generation
+├── cliff.toml                                  # git-cliff configuration
+├── env.json
+├── northbridge_customer360_architecture.svg    # Architecture diagram (vector)
+├── project-architecture.jpg                    # Architecture diagram (raster)
 │
-├── infra/platform/
-│   ├── keypair/                           # RSA keys — GITIGNORED
-│   │   ├── snowflake_key.p8               # Private key — never commit
-│   │   └── snowflake_key.pub              # Public key
-│   └── tf/                                # Terraform root module
-│       ├── main.tf                        # 6-phase orchestration
-│       ├── variables.tf
-│       ├── locals.tf
-│       ├── outputs.tf
-│       ├── backend.tf                     # HCP Terraform remote state
-│       ├── providers-aws.tf
-│       ├── providers-snowflake.tf         # Multiple provider aliases
-│       ├── versions.tf
-│       ├── modules/
-│       │   └── iam_role_final/            # Local module — re-pushes IAM trust at apply time
-│       ├── config/                        # JSON-driven resource definitions
-│       │   ├── aws/
-│       │   │   ├── config.json
-│       │   │   └── {devl,test,prod}/config.json
-│       │   └── snowflake/
-│       │       ├── config.json
-│       │       ├── config.backup.json     # Reference copy — do not overwrite
-│       │       └── {devl,test,prod}/config.json
-│       ├── environments/
-│       │   └── {devl,test,prod}/terraform.tfvars
-│       ├── templates/
-│       │   ├── bucket-policy/
-│       │   │   └── s3-bucket-policy.tpl
-│       │   ├── dynamic-tables/
-│       │   │   ├── clean_northbridge.tpl       # SILVER cleansing
-│       │   │   ├── dim_customer.tpl            # GOLD customer dimension
-│       │   │   ├── dim_product.tpl             # GOLD product dimension
-│       │   │   ├── dim_branch.tpl              # GOLD branch dimension
-│       │   │   ├── fact_transactions.tpl       # GOLD transaction fact
-│       │   │   ├── fact_loans.tpl              # GOLD loan fact
-│       │   │   └── fact_account_balances.tpl   # GOLD account balance fact
-│       │   ├── views/
-│       │   │   ├── v_kpi_summary.tpl           # GOLD KPI summary view
-│       │   │   ├── v_loan_portfolio.tpl        # GOLD loan portfolio view
-│       │   │   ├── v_monthly_txn_trends.tpl    # GOLD monthly transaction trends
-│       │   │   ├── v_regional_perf.tpl         # GOLD regional performance
-│       │   │   ├── v_risk_distribution.tpl     # GOLD risk distribution
-│       │   │   └── v_segment_stats.tpl         # GOLD customer segment stats
-│       │   └── snowpipe-copy-statements/
-│       │       └── raw_northbridge_copy.tpl
-│       └── tests/
-│           ├── config_validation.tftest.hcl
-│           └── platform_validation.tftest.hcl
+├── .claude/
+│   └── skills/                                 # Project-local Claude Code skills
+│       ├── aws-config-iam-policies/
+│       ├── aws-config-s3/
+│       ├── aws-config-trust/
+│       ├── github-readme/
+│       ├── snowflake-config-dynamic-tables-functions/
+│       ├── snowflake-config-snowpipes/
+│       ├── snowflake-config-stages-fileformats/
+│       ├── snowflake-config-tables/
+│       └── tf-{backend,locals,main,outputs,providers,variables,versions}/
 │
-├── snowflake-ddl/                        # Reference DDL only — not run by Terraform
-│   ├── 00_account/
-│   ├── 01_security/
-│   ├── 02_warehouses/
-│   ├── 03_databases/
-│   ├── 04_storage/
-│   ├── 05_schemas/
-│   ├── 06_pipes/
-│   ├── 08_functions/
-│   ├── 09_procedures/
-│   └── scripts/
+├── .devcontainer/                              # Dev container definition
+├── .editorconfig
+├── .gitignore
+├── .github/
+│   └── workflows/
+│       ├── ci.yaml                             # Terraform fmt / validate / security scans
+│       ├── terraform-deploy.yaml               # Provision infra (Pass A → Pass B)
+│       ├── terraform-destroy.yaml              # Tear down infra
+│       ├── deploy-streamlit-app.yaml           # Refresh Streamlit app from this repo
+│       ├── create-branch.yaml
+│       ├── setup-project.yaml
+│       └── notify.yaml
 │
 ├── app/
-│   └── northbridge_dashboard.py          # Streamlit in Snowflake dashboard
+│   └── northbridge_dashboard.py                # Streamlit in Snowflake dashboard
 │
-└── scripts/
-    └── gen_large.py                      # Synthetic dataset generator (seed=2025)
+├── data/                                       # Synthetic source dataset (~329 MB across 6 parts)
+│   └── northbridge_part0{0..5}_of_05.json
+│
+├── documentation/
+│   └── NorthBridge Bank Unified Data Lake for Customer 360.pptx
+│
+├── keypair/                                    # RSA keypair — GITIGNORED
+│   ├── snowflake_key.p8                        # Private key — never commit
+│   └── snowflake_key.pub                       # Public key
+│
+├── post-deployment-validation/
+│   ├── create-gold-views.sql
+│   └── pipe-validation.sql
+│
+└── infra/platform/tf/                          # Terraform root module
+    ├── main.tf                                 # 6-phase orchestration
+    ├── variables.tf
+    ├── locals.tf
+    ├── outputs.tf
+    ├── validations.tf
+    ├── backend.tf                              # HCP Terraform remote state
+    ├── providers-aws.tf
+    ├── providers-snowflake.tf                  # Multiple Snowflake provider aliases
+    ├── versions.tf
+    ├── modules/
+    │   └── iam_role_final/                     # Local module — re-pushes IAM trust at apply time
+    │       ├── main.tf
+    │       ├── variables.tf
+    │       └── outputs.tf
+    ├── config/                                 # JSON-driven resource definitions
+    │   ├── aws/
+    │   │   └── {devl,test,prod}/config.json
+    │   └── snowflake/
+    │       ├── config.json                     # Default / shared config
+    │       └── {devl,test,prod}/config.json
+    ├── environments/
+    │   └── {devl,test,prod}/terraform.tfvars
+    └── templates/
+        ├── bucket-policy/
+        │   └── s3-bucket-policy.tpl
+        ├── dynamic-tables/
+        │   ├── clean_northbridge.tpl           # SILVER cleansing
+        │   ├── dim_customer.tpl                # GOLD customer dimension
+        │   ├── dim_product.tpl                 # GOLD product dimension
+        │   ├── dim_branch.tpl                  # GOLD branch dimension
+        │   ├── fact_transactions.tpl           # GOLD transaction fact
+        │   ├── fact_loans.tpl                  # GOLD loan fact
+        │   └── fact_account_balances.tpl       # GOLD account balance fact
+        ├── views/
+        │   ├── v_kpi_summary.tpl               # GOLD KPI summary view
+        │   ├── v_loan_portfolio.tpl            # GOLD loan portfolio view
+        │   ├── v_monthly_txn_trends.tpl        # GOLD monthly transaction trends
+        │   ├── v_regional_perf.tpl             # GOLD regional performance
+        │   ├── v_risk_distribution.tpl         # GOLD risk distribution
+        │   └── v_segment_stats.tpl             # GOLD customer segment stats
+        └── snowpipe-copy-statements/
+            └── raw_northbridge_copy.tpl
 ```
 
 ---
