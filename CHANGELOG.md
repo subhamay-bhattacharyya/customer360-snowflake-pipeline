@@ -16,9 +16,11 @@ All notable changes to this project will be documented in this file.
 - Rename job to Refresh Streamlit and add verification for Snowflake connection variables
 - Update job name in Streamlit deployment workflow and add CREATE VIEW privilege for GOLD schema
 - Add S3 bucket lifecycle configuration resource to manage object expiration
+- Update target_lag for GOLD schema to 20 minutes
 
 ### Documentation
 
+- Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
