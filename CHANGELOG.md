@@ -28,6 +28,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
 
 ### Features
 
@@ -38,6 +39,10 @@ All notable changes to this project will be documented in this file.
 - Add Terraform Apply workflow for environment deployment
 - Add NORTHBRIDGE_ANALYST role and associated grants for GOLD views
 - Enhance SnowSQL installation process in Streamlit deployment workflow
+
+### Miscellaneous Tasks
+
+- Add post-deployment validation scripts and update Snowflake configurations
 
 ### Refactor
 
