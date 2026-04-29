@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Bug Fixes
+
+- Update template paths in config.json and add validation for template filenames
+- Add table grant pairs and resource for Snowflake privileges workaround
+- Expand SQL query to include additional customer and financial details in dynamic tables
+- Update dynamic tables to include additional primary branch and customer details
+- Remove static trust block and reconcile IAM trust policy at apply time
+- Remove streams and tasks configuration, update documentation for Snowpipe and Dynamic Tables
+- Update Streamlit deployment workflow to handle Snowflake private key securely
+- Rename job to Refresh Streamlit and add verification for Snowflake connection variables
+- Update job name in Streamlit deployment workflow and add CREATE VIEW privilege for GOLD schema
+- Add S3 bucket lifecycle configuration resource to manage object expiration
+- Update target_lag for GOLD schema to 20 minutes
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+
+### Features
+
+- Add deploy workflow for Streamlit app and update Terraform workflows
+- Add Streamlit app deployment step and create dashboard script
+- Add Terraform Apply workflow and new SQL views for CUST360 NorthBridge
+- Implement API integrations and enhance Streamlit deployment workflow
+- Add Terraform Apply workflow for environment deployment
+- Add NORTHBRIDGE_ANALYST role and associated grants for GOLD views
+- Enhance SnowSQL installation process in Streamlit deployment workflow
+
+### Miscellaneous Tasks
+
+- Add post-deployment validation scripts and update Snowflake configurations
+
+### Refactor
+
+- Rename CTE and simplify query structure in clean_northbridge.tpl
+
+## [Rel-013-20260420205108] - 2026-04-20
+
+### Documentation
+
+- Update CHANGELOG.md [skip ci]
+
 ### Features
 
 - Add dynamic table name lookup for Snowflake objects in locals.tf

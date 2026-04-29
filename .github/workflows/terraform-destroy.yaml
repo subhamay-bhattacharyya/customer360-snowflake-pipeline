@@ -4,6 +4,12 @@ run-name: >
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: environment
+        required: true
+
 
 concurrency:
   group: terraform-destroy-${{ github.ref }}
@@ -20,8 +26,5 @@ jobs:
     with:
       cloud-provider: platform
       backend-type: remote
-      # snowflake-user: ${{ vars.SNOWFLAKE_USER }}
-      # snowflake-role: ${{ vars.SNOWFLAKE_ROLE }}
     secrets:
       tfc-token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO_SNOWFLAKE_ORG }}
-      # snowflake-private-key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}

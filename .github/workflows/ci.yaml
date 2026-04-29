@@ -28,7 +28,7 @@ jobs:
 
   ci:
     name: CI
-    uses: subhamay-bhattacharyya-gha/tf-ci-reusable-wf/.github/workflows/ci.yaml@bug/GHA-0045-backend-type-remote-reus
+    uses: subhamay-bhattacharyya-gha/tf-ci-reusable-wf/.github/workflows/ci.yaml@main
     with:
       cloud-provider: platform
       tflint-ver: ${{ vars.TF_LINT_VER }}

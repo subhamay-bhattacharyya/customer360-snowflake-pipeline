@@ -15,7 +15,7 @@
     },
     "transform_wh": {
       "name": "TRANSFORM_WH",
-      "comment": "Stream tasks, BRONZE to SILVER to GOLD transforms",
+      "comment": "Dynamic Table refresh, BRONZE to SILVER to GOLD transforms",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -132,7 +132,9 @@
                 }
               ],
               "primary_key": {
-                "keys": ["ID"]
+                "keys": [
+                  "ID"
+                ]
               }
             }
           },
@@ -176,47 +178,22 @@
             "s3_storage_integration": {
               "name": "S3_STORAGE_INTEGRATION",
               "storage_provider": "S3",
-              "storage_allowed_locations": ["s3://northbridge-raw-data/raw-data/json/"],
+              "storage_allowed_locations": [
+                "s3://northbridge-raw-data/raw-data/json/"
+              ],
               "enabled": true,
               "comment": "S3 storage integration for NorthBridge raw data bucket"
             }
           },
-          "streams": {
-            "raw_northbridge_stream": {
-              "name": "RAW_NORTHBRIDGE_STREAM",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "source": "RAW_NORTHBRIDGE",
-              "append_only": true,
-              "comment": "Captures incremental inserts to trigger downstream task"
-            }
-          },
-          "tasks": {
-            "copy_banking_data": {
-              "name": "COPY_BANKING_DATA",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "LOAD_WH",
-              "schedule": "5 MINUTE",
-              "sql_template_file": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
-              "comment": "Scheduled COPY INTO from external stage to BRONZE table"
-            },
-            "process_northbridge_stream_task": {
-              "name": "PROCESS_NORTHBRIDGE_STREAM_TASK",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "TRANSFORM_WH",
-              "stream_trigger": "RAW_NORTHBRIDGE_STREAM",
-              "sql_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
-              "comment": "Stream-triggered task BRONZE to SILVER to GOLD transforms"
-            },
-            "refresh_customer_data_task": {
-              "name": "REFRESH_CUSTOMER_DATA_TASK",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "TRANSFORM_WH",
-              "schedule": "60 MINUTE",
-              "comment": "Periodic enrichment of customer data"
+          "api_integrations": {
+            "github_api_integration": {
+              "name": "GITHUB_API_INT",
+              "api_provider": "git_https_api",
+              "api_allowed_prefixes": [
+                "https://github.com/subhamay-bhattacharyya/customer360-snowflake-pipeline"
+              ],
+              "enabled": true,
+              "comment": "API integration for the customer360-snowflake-pipeline GitHub repo used to deploy Streamlit in Snowflake apps"
             }
           },
           "snowpipes": {
@@ -243,7 +220,7 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "SILVER",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "1 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "clean_northbridge.tpl",
@@ -253,7 +230,9 @@
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
-                  "privileges": ["SELECT"]
+                  "privileges": [
+                    "SELECT"
+                  ]
                 }
               ]
             }
@@ -261,54 +240,7 @@
         },
         {
           "name": "GOLD",
-          "comment": "Modelled data layer for analytics and dashboards",
-          "functions": {
-            "prominent_index": {
-              "name": "PROMINENT_INDEX",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "JAVASCRIPT",
-              "return_type": "VARCHAR",
-              "arguments": [
-                { "name": "credit_score", "type": "NUMBER" },
-                { "name": "risk_rating", "type": "VARCHAR" }
-              ],
-              "body_template_file": "templates/functions/prominent_index.tpl",
-              "comment": "Returns the dominant customer risk index",
-              "grants": [
-                {
-                  "role_name": "NORTHBRIDGE_ANALYST",
-                  "privileges": ["USAGE"]
-                }
-              ]
-            },
-            "three_sub_index_criteria": {
-              "name": "THREE_SUB_INDEX_CRITERIA",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "SQL",
-              "return_type": "BOOLEAN",
-              "arguments": [
-                { "name": "income_tier", "type": "VARCHAR" },
-                { "name": "credit_tier", "type": "VARCHAR" },
-                { "name": "kyc_status", "type": "VARCHAR" }
-              ],
-              "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
-              "comment": "Customer scoring evaluation logic returns true if 3 sub-criteria met"
-            },
-            "get_int": {
-              "name": "GET_INT",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "SQL",
-              "return_type": "NUMBER",
-              "arguments": [
-                { "name": "val", "type": "VARIANT" }
-              ],
-              "body": "SELECT val::NUMBER",
-              "comment": "Helper safely casts VARIANT to NUMBER"
-            }
-          }
+          "comment": "Modelled data layer for analytics and dashboards"
         },
         {
           "name": "STREAMLIT",

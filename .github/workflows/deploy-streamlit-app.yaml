@@ -1,0 +1,171 @@
+name: Deploy Streamlit App to Snowflake
+description: Deploy Streamlit app to Snowflake when app files change
+
+on:
+  workflow_dispatch:                    # manual trigger
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: environment
+        required: true
+      database:
+        description: Snowflake database
+        type: string
+        required: true
+        default: CUST360_NORTHBRIDGE_DATABASE
+      warehouse:
+        description: Snowflake warehouse
+        type: string
+        required: true
+        default: STREAMLIT_WH
+      schema:
+        description: Snowflake schema
+        type: string
+        required: true
+        default: STREAMLIT
+  workflow_call:                        # callable from other workflows (e.g. terraform-apply)
+    inputs:
+      environment:
+        description: Target environment to deploy
+        type: string
+        required: true
+      database:
+        description: Snowflake database
+        type: string
+        required: false
+        default: CUST360_NORTHBRIDGE_DATABASE
+      warehouse:
+        description: Snowflake warehouse
+        type: string
+        required: false
+        default: STREAMLIT_WH
+      schema:
+        description: Snowflake schema
+        type: string
+        required: false
+        default: STREAMLIT
+
+jobs:
+  deploy:
+    name: Refresh App
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+
+      # ── 1. Checkout repo ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Install SnowSQL ────────────────────────────────────
+      # SNOWSQL_DEST + SNOWSQL_LOGIN_SHELL skip the installer's interactive
+      # prompts, which would otherwise fail in a non-TTY CI shell.
+      - name: Install SnowSQL
+        env:
+          SNOWSQL_DEST: ${{ runner.temp }}/snowsql
+          SNOWSQL_LOGIN_SHELL: /dev/null
+        run: |
+          set -euo pipefail
+          mkdir -p "$SNOWSQL_DEST"
+          curl -fsSL -o snowsql.bash \
+            https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.32-linux_x86_64.bash
+          bash snowsql.bash
+          echo "$SNOWSQL_DEST" >> "$GITHUB_PATH"
+          "$SNOWSQL_DEST/snowsql" --version
+
+      # ── 2b. Verify required GitHub vars ──────────────────────
+      # Fails the job with a clear message if any var is missing, instead of
+      # letting snowsql later report a generic "Account must be specified".
+      - name: Verify Snowflake connection vars
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER:    ${{ vars.SNOWFLAKE_USER }}
+          SNOWFLAKE_ROLE:    ${{ vars.SNOWFLAKE_ROLE }}
+        run: |
+          set -euo pipefail
+          : "${SNOWFLAKE_ACCOUNT:?missing GitHub var SNOWFLAKE_ACCOUNT (env: ${{ inputs.environment }}) — set it under Settings → Environments → ${{ inputs.environment }} → Variables}"
+          : "${SNOWFLAKE_USER:?missing GitHub var SNOWFLAKE_USER (env: ${{ inputs.environment }})}"
+          : "${SNOWFLAKE_ROLE:?missing GitHub var SNOWFLAKE_ROLE (env: ${{ inputs.environment }})}"
+
+      # ── 3. Write RSA private key to disk ──────────────────────
+      # GitHub secrets preserve newlines, so we write the PEM verbatim.
+      # (HCP Terraform env vars strip newlines and need base64 — GitHub does
+      # not, so do not base64-decode here.) Routing through env: keeps the
+      # value out of the rendered command line.
+      - name: Write Snowflake private key
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > /tmp/snowflake_key.p8
+          chmod 600 /tmp/snowflake_key.p8
+          # Sanity check — fail early if the secret is not a PEM private key
+          head -1 /tmp/snowflake_key.p8 | grep -q 'BEGIN .*PRIVATE KEY' \
+            || { echo "::error::SNOWFLAKE_PRIVATE_KEY is not a PEM-formatted private key"; exit 1; }
+
+      # ── 4. Fetch latest code from GitHub into Snowflake ───────
+      - name: Fetch Git repository in Snowflake
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "ALTER GIT REPOSITORY NORTHBRIDGE_DATABASE.STREAMLIT.NORTHBRIDGE_GIT_REPO FETCH;"
+
+      # ── 5. Verify app file is present on the branch ───────────
+      - name: Verify app file in Snowflake stage
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "LS @NORTHBRIDGE_DATABASE.STREAMLIT.NORTHBRIDGE_GIT_REPO/branches/main/app/;"
+
+      # ── 6. Create or replace the Streamlit app (bootstrap-safe) ───
+      - name: Create or replace Streamlit app
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "CREATE OR REPLACE STREAMLIT ${{ inputs.database }}.${{ inputs.schema }}.CUSTOMER_360_DASHBOARD
+                       ROOT_LOCATION   = '@${{ inputs.database }}.${{ inputs.schema }}.NORTHBRIDGE_GIT_REPO/branches/main/app'
+                       MAIN_FILE       = 'northbridge_dashboard.py'
+                       QUERY_WAREHOUSE = ${{ inputs.warehouse }}
+                       COMMENT         = 'NorthBridge Customer 360 & Risk Analytics dashboard';"
+
+      # ── 7. Confirm Streamlit app status ───────────────────────
+      - name: Check Streamlit app
+        env:
+          SNOWSQL_ACCOUNT:  ${{ vars.SNOWFLAKE_ACCOUNT }}
+          SNOWSQL_USER:     ${{ vars.SNOWFLAKE_USER }}
+          SNOWSQL_ROLE:     ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWSQL_WH:       ${{ inputs.warehouse }}
+          SNOWSQL_DATABASE: ${{ inputs.database }}
+          SNOWSQL_SCHEMA:   ${{ inputs.schema }}
+        run: |
+          snowsql \
+            --private-key-path /tmp/snowflake_key.p8 \
+            --query "SHOW STREAMLITS LIKE 'CUSTOMER_360_DASHBOARD'
+                     IN SCHEMA ${{ inputs.database }}.${{ inputs.schema }};"
+
+      # ── 8. Clean up private key ───────────────────────────────
+      - name: Remove private key
+        if: always()
+        run: rm -f /tmp/snowflake_key.p8

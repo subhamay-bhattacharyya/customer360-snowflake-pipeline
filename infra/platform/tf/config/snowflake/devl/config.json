@@ -7,13 +7,24 @@
         "raw-data/json/"
       ],
       "enabled": true,
-      "comment": "S3 storage integration for NorthBridge raw data bucket"
+      "comment": "[cust360] S3 storage integration for NorthBridge raw data bucket"
+    }
+  },
+  "api_integrations": {
+    "github": {
+      "name": "GITHUB_API_INT",
+      "api_provider": "git_https_api",
+      "api_allowed_prefixes": [
+        "https://github.com/subhamay-bhattacharyya/customer360-snowflake-pipeline"
+      ],
+      "enabled": true,
+      "comment": "[cust360] API integration for the customer360-snowflake-pipeline GitHub repo used to deploy Streamlit in Snowflake apps"
     }
   },
   "warehouses": {
     "load_wh": {
       "name": "LOAD_WH",
-      "comment": "Snowpipe ingestion and COPY operations",
+      "comment": "[cust360] Snowpipe ingestion and COPY operations",
       "warehouse_size": "MEDIUM",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -26,7 +37,7 @@
     },
     "transform_wh": {
       "name": "TRANSFORM_WH",
-      "comment": "Stream tasks, BRONZE to SILVER to GOLD transforms",
+      "comment": "[cust360] Dynamic Table refresh, BRONZE to SILVER to GOLD transforms",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -39,7 +50,7 @@
     },
     "streamlit_wh": {
       "name": "STREAMLIT_WH",
-      "comment": "Dashboard queries",
+      "comment": "[cust360] Dashboard queries",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -52,7 +63,7 @@
     },
     "adhoc_wh": {
       "name": "ADHOC_WH",
-      "comment": "Development and ad-hoc debugging",
+      "comment": "[cust360] Development and ad-hoc debugging",
       "warehouse_size": "X-SMALL",
       "auto_resume": true,
       "auto_suspend": 60,
@@ -67,11 +78,11 @@
   "databases": {
     "northbridge_database": {
       "name": "NORTHBRIDGE_DATABASE",
-      "comment": "Central analytical database for the NorthBridge Customer 360 pipeline",
+      "comment": "[cust360] Central analytical database for the NorthBridge Customer 360 pipeline",
       "schemas": [
         {
           "name": "BRONZE",
-          "comment": "Raw ingestion layer",
+          "comment": "[cust360] Raw ingestion layer",
           "tables": {
             "raw_northbridge": {
               "database": "NORTHBRIDGE_DATABASE",
@@ -80,13 +91,13 @@
               "table_type": "TRANSIENT",
               "drop_before_create": true,
               "data_retention_time_in_days": 1,
-              "comment": "Raw ingestion table VARIANT payload + audit columns",
+              "comment": "[cust360] Raw ingestion table — VARIANT payload + audit columns",
               "columns": [
                 {
                   "name": "ID",
                   "type": "NUMBER(38,0)",
                   "nullable": false,
-                  "comment": "Surrogate PK",
+                  "comment": "[cust360] Surrogate PK",
                   "autoincrement": {
                     "start": 1,
                     "increment": 1,
@@ -97,13 +108,13 @@
                   "name": "INDEX_RECORD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": false,
-                  "comment": "Record timestamp from source"
+                  "comment": "[cust360] Record timestamp from source"
                 },
                 {
                   "name": "JSON_DATA",
                   "type": "VARIANT",
                   "nullable": false,
-                  "comment": "Raw JSON payload"
+                  "comment": "[cust360] Raw JSON payload"
                 },
                 {
                   "name": "RECORD_COUNT",
@@ -119,25 +130,25 @@
                   "name": "_STG_FILE_NAME",
                   "type": "VARCHAR(500)",
                   "nullable": true,
-                  "comment": "Audit source stage file name"
+                  "comment": "[cust360] Audit — source stage file name"
                 },
                 {
                   "name": "_STG_FILE_LOAD_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit stage load timestamp"
+                  "comment": "[cust360] Audit — stage load timestamp"
                 },
                 {
                   "name": "_STG_FILE_MD5",
                   "type": "VARCHAR(64)",
                   "nullable": true,
-                  "comment": "Audit SHA-256 hash of stage file"
+                  "comment": "[cust360] Audit — SHA-256 hash of stage file"
                 },
                 {
                   "name": "_COPY_DATA_TS",
                   "type": "TIMESTAMP_NTZ",
                   "nullable": true,
-                  "comment": "Audit COPY INTO execution timestamp"
+                  "comment": "[cust360] Audit — COPY INTO execution timestamp"
                 }
               ],
               "primary_key": {
@@ -159,7 +170,7 @@
               "strip_outer_array": false,
               "strip_null_values": false,
               "ignore_utf8_errors": false,
-              "comment": "JSON parsing config for NorthBridge raw ingestion"
+              "comment": "[cust360] JSON parsing config for NorthBridge raw ingestion"
             }
           },
           "stages": {
@@ -171,54 +182,7 @@
               "url": "s3://the-s3-bucket/raw-data/json/",
               "storage_integration": "S3_STORAGE_INTEGRATION",
               "file_format": "JSON_FILE_FORMAT",
-              "comment": "External S3 stage for NorthBridge raw JSON ingestion"
-            },
-            "raw_internal_stg": {
-              "name": "RAW_INTERNAL_STG",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "stage_type": "internal",
-              "file_format": "JSON_FILE_FORMAT",
-              "directory_enabled": true,
-              "comment": "Internal stage for temporary file processing"
-            }
-          },
-          "streams": {
-            "raw_northbridge_stream": {
-              "name": "RAW_NORTHBRIDGE_STREAM",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "source": "RAW_NORTHBRIDGE",
-              "append_only": true,
-              "comment": "Captures incremental inserts to trigger downstream task"
-            }
-          },
-          "tasks": {
-            "copy_banking_data": {
-              "name": "COPY_BANKING_DATA",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "LOAD_WH",
-              "schedule": "5 MINUTE",
-              "sql_template_file": "templates/snowpipe-copy-statements/raw_northbridge_copy.tpl",
-              "comment": "Scheduled COPY INTO from external stage to BRONZE table"
-            },
-            "process_northbridge_stream_task": {
-              "name": "PROCESS_NORTHBRIDGE_STREAM_TASK",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "TRANSFORM_WH",
-              "stream_trigger": "RAW_NORTHBRIDGE_STREAM",
-              "sql_template_file": "templates/dynamic-tables/clean_northbridge.tpl",
-              "comment": "Stream-triggered task BRONZE to SILVER to GOLD transforms"
-            },
-            "refresh_customer_data_task": {
-              "name": "REFRESH_CUSTOMER_DATA_TASK",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "BRONZE",
-              "warehouse": "TRANSFORM_WH",
-              "schedule": "60 MINUTE",
-              "comment": "Periodic enrichment of customer data"
+              "comment": "[cust360] External S3 stage for NorthBridge raw JSON ingestion"
             }
           },
           "snowpipes": {
@@ -232,26 +196,26 @@
               "copy_template": "raw_northbridge_copy.tpl",
               "auto_ingest": true,
               "filter_suffix": ".json",
-              "comment": "Auto-ingest pipe S3 to BRONZE.RAW_NORTHBRIDGE"
+              "comment": "[cust360] Auto-ingest pipe — S3 to BRONZE.RAW_NORTHBRIDGE"
             }
           }
         },
         {
           "name": "SILVER",
-          "comment": "Cleansed and typed data layer",
+          "comment": "[cust360] Cleansed and typed data layer",
           "dynamic_tables": {
             "clean_northbridge_dt": {
               "name": "CLEAN_NORTHBRIDGE_DT",
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "SILVER",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "10 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "clean_northbridge.tpl",
               "source_schema": "BRONZE",
               "source_table": "RAW_NORTHBRIDGE",
-              "comment": "Cleansed and typed NorthBridge dataset auto-refreshed from BRONZE",
+              "comment": "[cust360] Cleansed and typed NorthBridge dataset — auto-refreshed from BRONZE",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -265,87 +229,20 @@
         },
         {
           "name": "GOLD",
-          "comment": "Modelled data layer for analytics and dashboards",
-          "functions": {
-            "prominent_index": {
-              "name": "PROMINENT_INDEX",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "JAVASCRIPT",
-              "return_type": "VARCHAR",
-              "arguments": [
-                {
-                  "name": "credit_score",
-                  "type": "NUMBER"
-                },
-                {
-                  "name": "risk_rating",
-                  "type": "VARCHAR"
-                }
-              ],
-              "body_template_file": "templates/functions/prominent_index.tpl",
-              "comment": "Returns the dominant customer risk index",
-              "grants": [
-                {
-                  "role_name": "NORTHBRIDGE_ANALYST",
-                  "privileges": [
-                    "USAGE"
-                  ]
-                }
-              ]
-            },
-            "three_sub_index_criteria": {
-              "name": "THREE_SUB_INDEX_CRITERIA",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "SQL",
-              "return_type": "BOOLEAN",
-              "arguments": [
-                {
-                  "name": "income_tier",
-                  "type": "VARCHAR"
-                },
-                {
-                  "name": "credit_tier",
-                  "type": "VARCHAR"
-                },
-                {
-                  "name": "kyc_status",
-                  "type": "VARCHAR"
-                }
-              ],
-              "body_template_file": "templates/functions/three_sub_index_criteria.tpl",
-              "comment": "Customer scoring evaluation logic returns true if 3 sub-criteria met"
-            },
-            "get_int": {
-              "name": "GET_INT",
-              "database": "NORTHBRIDGE_DATABASE",
-              "schema": "GOLD",
-              "language": "SQL",
-              "return_type": "NUMBER",
-              "arguments": [
-                {
-                  "name": "val",
-                  "type": "VARIANT"
-                }
-              ],
-              "body": "SELECT val::NUMBER",
-              "comment": "Helper safely casts VARIANT to NUMBER"
-            }
-          },
+          "comment": "[cust360] Modelled data layer for analytics and dashboards",
           "dynamic_tables": {
             "dim_customer": {
               "name": "DIM_CUSTOMER",
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "GOLD",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "20 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "dim_customer.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold Customer dimension (latest snapshot per customer)",
+              "comment": "[cust360] Gold — Customer dimension (latest snapshot per customer)",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -360,13 +257,13 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "GOLD",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "20 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "dim_product.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold Product dimension derived from account data",
+              "comment": "[cust360] Gold — Product dimension derived from account data",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -381,13 +278,13 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "GOLD",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "20 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "dim_branch.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold Branch dimension from customer primary branch data",
+              "comment": "[cust360] Gold — Branch dimension from customer primary branch data",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -402,13 +299,13 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "GOLD",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "20 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "fact_transactions.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold Transaction fact table",
+              "comment": "[cust360] Gold — Transaction fact table",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -423,13 +320,13 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "GOLD",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "20 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "fact_loans.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold Loan fact table",
+              "comment": "[cust360] Gold — Loan fact table",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -444,13 +341,105 @@
               "database": "NORTHBRIDGE_DATABASE",
               "schema": "GOLD",
               "warehouse": "LOAD_WH",
-              "target_lag": "downstream",
+              "target_lag": "20 minute",
               "refresh_mode": "AUTO",
               "initialize": "ON_CREATE",
               "query_template_file": "fact_account_balances.tpl",
               "source_schema": "SILVER",
               "source_table": "CLEAN_NORTHBRIDGE_DT",
-              "comment": "Gold Account balance fact table",
+              "comment": "[cust360] Gold — Account balance fact table",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            }
+          },
+          "views": {
+            "v_kpi_summary": {
+              "name": "V_KPI_SUMMARY",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "query_template_file": "v_kpi_summary.tpl",
+              "comment": "[cust360] Gold — KPI summary view",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            },
+            "v_loan_portfolio": {
+              "name": "V_LOAN_PORTFOLIO",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "query_template_file": "v_loan_portfolio.tpl",
+              "comment": "[cust360] Gold — Loan portfolio view",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            },
+            "v_monthly_txn_trends": {
+              "name": "V_MONTHLY_TXN_TRENDS",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "query_template_file": "v_monthly_txn_trends.tpl",
+              "comment": "[cust360] Gold — Monthly transaction trends view",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            },
+            "v_regional_perf": {
+              "name": "V_REGIONAL_PERF",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "query_template_file": "v_regional_perf.tpl",
+              "comment": "[cust360] Gold — Regional performance view",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            },
+            "v_risk_distribution": {
+              "name": "V_RISK_DISTRIBUTION",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "query_template_file": "v_risk_distribution.tpl",
+              "comment": "[cust360] Gold — Risk distribution view",
+              "grants": [
+                {
+                  "role_name": "NORTHBRIDGE_ANALYST",
+                  "privileges": [
+                    "SELECT"
+                  ]
+                }
+              ]
+            },
+            "v_segment_stats": {
+              "name": "V_SEGMENT_STATS",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "GOLD",
+              "query_template_file": "v_segment_stats.tpl",
+              "comment": "[cust360] Gold — Customer segment stats view",
               "grants": [
                 {
                   "role_name": "NORTHBRIDGE_ANALYST",
@@ -464,7 +453,17 @@
         },
         {
           "name": "STREAMLIT",
-          "comment": "Dashboard scripts for Streamlit in Snowflake"
+          "comment": "[cust360] Dashboard scripts for Streamlit in Snowflake",
+          "stages": {
+            "streamlit_stg": {
+              "name": "STREAMLIT_STG",
+              "database": "NORTHBRIDGE_DATABASE",
+              "schema": "STREAMLIT",
+              "stage_type": "internal",
+              "directory_enabled": true,
+              "comment": "[cust360] Internal stage hosting Streamlit app Python files"
+            }
+          }
         }
       ]
     }

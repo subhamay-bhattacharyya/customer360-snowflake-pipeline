@@ -20,7 +20,8 @@ This project uses a set of installed skills. Claude Code **must consult the rele
 | -------------------------- | ---------------------------------------------------------------- |
 | `aws-config-s3`            | `aws.region`, `aws.s3.*`, `aws.tf_state.*`                       |
 | `aws-config-iam-policies`  | `aws.iam.role_name`, `aws.iam.policies[]`                        |
-| `aws-config-trust`         | `trust.snowflake_principal_arn`, `trust.snowflake_external_id`   |
+
+> The previous static `trust` block has been removed. The IAM trust policy is now reconciled at apply time from the live storage integration output — nothing to edit by hand.
 
 ### Snowflake config skills (`infra/platform/tf/config/snowflake/config.json`)
 
@@ -28,8 +29,10 @@ This project uses a set of installed skills. Claude Code **must consult the rele
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `snowflake-config-tables`                    | `databases.*.schemas[].tables` — columns, types, primary keys, TRANSIENT vs PERMANENT, audit columns     |
 | `snowflake-config-stages-fileformats`        | `schemas[].stages`, `schemas[].file_formats`                                                             |
-| `snowflake-config-streams-tasks-pipes`       | `schemas[].streams`, `schemas[].tasks`, `schemas[].snowpipes`                                            |
+| `snowflake-config-snowpipes`                 | `schemas[].snowpipes`                                                                                    |
 | `snowflake-config-dynamic-tables-functions`  | `schemas[].dynamic_tables`, `schemas[].functions`                                                        |
+
+> Streams and tasks are not used in this pipeline. Ingestion is handled by Snowpipe (auto-ingest from S3) and downstream refreshes are handled by Dynamic Tables (`target_lag = "downstream"`). Do not add `streams` or `tasks` blocks to the config.
 
 ### When multiple skills apply
 
@@ -48,14 +51,12 @@ terraform init
 terraform validate
 terraform fmt -recursive
 
-# Pass 1 — create resources with placeholder IAM trust policy
-terraform apply -var-file="terraform.tfvars" -var="enable_trust_policy_update=false"
+# Pass A — create core infra; IAM trust is auto-reconciled from the live storage integration output.
+# Snowpipe is gated off on the first apply so it doesn't race the trust sync.
+terraform apply -var-file="terraform.tfvars" -var="enable_snowpipe_creation=false"
 
-# Pass 2 — update IAM trust policy with Snowflake storage integration values
-terraform apply -var-file="terraform.tfvars" -var="enable_trust_policy_update=true"
-
-# Pass 3 — enable Snowpipe (after trust policy is confirmed working)
-terraform apply -var-file="terraform.tfvars" -var="enable_snowpipe_creation=true"
+# Pass B — enable Snowpipe + S3 event notification (default for enable_snowpipe_creation is true)
+terraform apply -var-file="terraform.tfvars"
 
 # Destroy
 terraform destroy -var-file="terraform.tfvars"
@@ -103,7 +104,7 @@ S3 raw-data/json/
         ▼  Snowpipe auto-ingest (RAW_NORTHBRIDGE_PIPE)
 BRONZE.RAW_NORTHBRIDGE          (VARIANT + audit columns)
         │
-        ▼  RAW_NORTHBRIDGE_STREAM + PROCESS_NORTHBRIDGE_STREAM_TASK
+        ▼  Dynamic Table auto-refresh (target_lag = "downstream")
 SILVER.CLEAN_NORTHBRIDGE_DT     (Dynamic Table, typed & cleansed)
         │
         ▼  Dynamic Tables + UDFs
@@ -117,10 +118,10 @@ STREAMLIT schema                (Dashboard scripts)
 
 `main.tf` provisions resources in a strict dependency order across 5 phases. **Never reorder modules or remove `depends_on` chains.**
 
-1. **AWS resources** — `module.s3` (S3 bucket), `module.iam_role` (IAM role with placeholder trust)
+1. **AWS resources** — `module.s3` (S3 bucket), `module.iam_role` (IAM role; trust policy computed from the live storage integration output via `local.assume_role_policy`, or account-root placeholder on first create)
 2. **Snowflake resources** (each depends on previous) — `module.warehouse` → `module.database_schemas` → `module.file_formats` → `module.storage_integrations` → `module.stage` → `module.table`
-3. **AWS trust policy update** — `module.aws_iam_role_final` (local module at `./modules/iam_role_final/`); updates IAM trust with Snowflake's `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID`. Controlled by `var.enable_trust_policy_update`.
-4. **Snowpipes (BRONZE)** — `module.pipe` + `module.s3_notification`; only when `var.enable_snowpipe_creation = true`
+3. **AWS trust policy reconcile** — `module.aws_iam_role_final` (local module at `./modules/iam_role_final/`); on every apply, re-pushes the current `STORAGE_AWS_IAM_USER_ARN` / `STORAGE_AWS_EXTERNAL_ID` to the IAM role via AWS CLI. No manual flag — fires whenever a storage integration is configured.
+4. **Snowpipes (BRONZE)** — `module.pipe` + `module.s3_notification`; only when `var.enable_snowpipe_creation = true` (default `true`; set `false` only on the very first apply to avoid racing the trust sync)
 5. **Dynamic Tables (SILVER)** — `module.dynamic_table` (`SILVER.CLEAN_NORTHBRIDGE_DT`); SQL from `clean_northbridge.tpl`
 
 ### Provider Aliases
@@ -150,8 +151,8 @@ Terraform reads all resource definitions from JSON config files. **Never hardcod
 
 | File                                | Purpose                                                                                                          | Skills                                                                                                                                                |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `infra/platform/tf/config/aws/config.json`       | S3, IAM role, IAM policies, trust block                                                                          | `aws-config-s3`, `aws-config-iam-policies`, `aws-config-trust`                                                                                        |
-| `infra/platform/tf/config/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, streams, tasks, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-streams-tasks-pipes`, `snowflake-config-dynamic-tables-functions` |
+| `infra/platform/tf/config/aws/config.json`       | S3, IAM role, IAM policies                                                                                       | `aws-config-s3`, `aws-config-iam-policies`                                                                                                            |
+| `infra/platform/tf/config/snowflake/config.json` | Warehouses, database, schemas, stages, file formats, tables, Snowpipe, dynamic tables, functions | `snowflake-config-tables`, `snowflake-config-stages-fileformats`, `snowflake-config-snowpipes`, `snowflake-config-dynamic-tables-functions` |
 
 `infra/platform/tf/config/snowflake/config.backup.json` is a safe reference copy — do not delete or overwrite it.
 
@@ -159,7 +160,7 @@ Environment-specific overrides live in `infra/platform/tf/config/aws/{devl,test,
 
 ### AWS Config JSON structure
 
-> Consult `aws-config-s3`, `aws-config-iam-policies`, and `aws-config-trust` skills before editing.
+> Consult `aws-config-s3` and `aws-config-iam-policies` skills before editing.
 
 ```text
 infra/platform/tf/config/aws/config.json
@@ -167,14 +168,13 @@ infra/platform/tf/config/aws/config.json
 ├── aws.s3.*                      ← aws-config-s3
 │   ├── bucket_name, bucket_keys, versioning, kms_key_alias
 │   └── lifecycle_rules[]
-├── aws.iam.*                     ← aws-config-iam-policies
-│   ├── role_name
-│   └── policies[]
-│       └── name, sid, effect, action[], resource
-└── trust.*                       ← aws-config-trust
-    ├── snowflake_principal_arn   ← populated after Pass 1 (DESC INTEGRATION)
-    └── snowflake_external_id     ← populated after Pass 1 (DESC INTEGRATION)
+└── aws.iam.*                     ← aws-config-iam-policies
+    ├── role_name
+    └── policies[]
+        └── name, sid, effect, action[], resource
 ```
+
+> The `trust` block is gone. `module.aws_iam_role_final` reads Snowflake's `STORAGE_AWS_IAM_USER_ARN` / `STORAGE_AWS_EXTERNAL_ID` from the storage integration module output at apply time — no manual DESC / edit needed.
 
 ### Snowflake Config JSON structure
 
@@ -187,9 +187,7 @@ infra/platform/tf/config/snowflake/config.json
 │   ├── tables.*                  ← snowflake-config-tables
 │   ├── stages.*                  ← snowflake-config-stages-fileformats
 │   ├── file_formats.*            ← snowflake-config-stages-fileformats
-│   ├── streams.*                 ← snowflake-config-streams-tasks-pipes
-│   ├── tasks.*                   ← snowflake-config-streams-tasks-pipes
-│   ├── snowpipes.*               ← snowflake-config-streams-tasks-pipes
+│   ├── snowpipes.*               ← snowflake-config-snowpipes
 │   ├── dynamic_tables.*          ← snowflake-config-dynamic-tables-functions
 │   └── functions.*               ← snowflake-config-dynamic-tables-functions
 ```
@@ -200,9 +198,9 @@ SQL logic lives in `.tpl` files under `infra/platform/tf/templates/`. Terraform 
 
 | Template                                               | Purpose                                                | Related skill                                  |
 | ------------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------- |
-| `bucket-policy/s3-bucket-policy.tpl`                   | S3 bucket policy for Snowflake storage integration     | `aws-config-trust`                             |
+| `bucket-policy/s3-bucket-policy.tpl`                   | S3 bucket policy for Snowflake storage integration     | `aws-config-iam-policies`                      |
 | `dynamic-tables/clean_northbridge.tpl`                 | SILVER cleansing + typing SQL                          | `snowflake-config-dynamic-tables-functions`    |
-| `snowpipe-copy-statements/raw_northbridge_copy.tpl`    | `COPY INTO BRONZE.RAW_NORTHBRIDGE` from external stage | `snowflake-config-streams-tasks-pipes`         |
+| `snowpipe-copy-statements/raw_northbridge_copy.tpl`    | `COPY INTO BRONZE.RAW_NORTHBRIDGE` from external stage | `snowflake-config-snowpipes`                   |
 
 ### Snowflake Authentication
 
@@ -214,15 +212,16 @@ snowflake_private_key_path = "../../keypair/snowflake_key.p8"
 
 ---
 
-## IAM Trust Policy — Two-Pass Bootstrap
+## IAM Trust Policy — Apply-Time Reconcile
 
-> See the `aws-config-trust` skill for the full step-by-step sequence including the exact `DESC INTEGRATION` SQL and how to populate the `trust` block in `aws/config.json`.
+The IAM role's trust policy is computed from the live storage integration output (`STORAGE_AWS_IAM_USER_ARN`, `STORAGE_AWS_EXTERNAL_ID`) at apply time — no static JSON config, no `DESC INTEGRATION` / manual edit step.
 
-The IAM role trust policy requires two `terraform apply` runs on a fresh deployment because Snowflake's `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID` are only known after the storage integration is created.
+Flow:
+- **First apply**: storage integration doesn't exist yet, so `local.assume_role_policy` falls back to an account-root placeholder on the IAM role. Immediately after, `module.storage_integrations` creates the integration; `module.aws_iam_role_final` (local module) runs `aws iam update-assume-role-policy` via `local-exec` to push the real Snowflake trust. All in the same apply.
+- **Subsequent applies**: `local.snowflake_iam_user_arn_runtime` / `local.snowflake_external_id_runtime` are populated from the refreshed integration output, so `local.assume_role_policy` already matches reality — no drift on `module.iam_role`. `module.aws_iam_role_final`'s `always_run` trigger still re-runs the CLI reconcile as a safety net (idempotent).
+- **On `terraform destroy`**: nothing special — both modules destroy cleanly.
 
-- **Pass 1**: `enable_trust_policy_update=false` — creates all resources up to storage integration; `trust` block fields left as `""`
-- **Pass 2**: `enable_trust_policy_update=true` — after populating `trust.snowflake_principal_arn` and `trust.snowflake_external_id` from `DESC INTEGRATION S3_STORAGE_INTEGRATION`
-- **Pass 3**: `enable_snowpipe_creation=true` — creates Snowpipe after trust is confirmed; SQS policy in `aws.iam.policies[]` must be present before this pass
+One edge on **fresh bootstrap only**: set `-var="enable_snowpipe_creation=false"` on the very first apply so Snowpipe doesn't race the trust sync. Default for that variable is `true`, so subsequent applies need no flags.
 
 ---
 
@@ -243,11 +242,11 @@ The IAM role trust policy requires two `terraform apply` runs on a fresh deploym
 
 ## Warehouses
 
-| Name             | Size      | Purpose                                  |
-| ---------------- | --------- | ---------------------------------------- |
-| `LOAD_WH`        | MEDIUM    | Snowpipe ingestion + COPY operations     |
-| `TRANSFORM_WH`   | X-SMALL   | Stream tasks, BRONZE → SILVER → GOLD     |
-| `STREAMLIT_WH`   | X-SMALL   | Dashboard queries                        |
-| `ADHOC_WH`       | X-SMALL   | Development + ad-hoc debugging           |
+| Name           | Size    | Purpose                                       |
+| -------------- | ------- | --------------------------------------------- |
+| `LOAD_WH`      | MEDIUM  | Snowpipe ingestion + COPY operations          |
+| `TRANSFORM_WH` | X-SMALL | Dynamic Table refresh, BRONZE → SILVER → GOLD |
+| `STREAMLIT_WH` | X-SMALL | Dashboard queries                             |
+| `ADHOC_WH`     | X-SMALL | Development + ad-hoc debugging                |
 
 All warehouses start suspended (`initially_suspended = true`) and auto-resume on demand. Auto-suspend is 60s.
