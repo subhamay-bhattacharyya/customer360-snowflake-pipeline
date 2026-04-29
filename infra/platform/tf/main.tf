@@ -62,6 +62,37 @@ module "s3" {
 }
 
 # ----------------------------------------------------------------------------
+# • 1.1b S3 Bucket Lifecycle Rules
+# Applied here because terraform-aws-s3 v1.0.0 does not expose a
+# lifecycle_rules field on its s3_config variable. Reads directly from the
+# AWS config JSON (aws.s3.lifecycle_rules); count gates on presence so envs
+# without the field (test/prod today) skip the resource entirely.
+# ----------------------------------------------------------------------------
+resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  count = length(try(local.aws_config.s3.lifecycle_rules, [])) > 0 ? 1 : 0
+
+  bucket = module.s3.bucket_id
+
+  dynamic "rule" {
+    for_each = local.aws_config.s3.lifecycle_rules
+    content {
+      id     = rule.value.id
+      status = rule.value.enabled ? "Enabled" : "Disabled"
+
+      filter {
+        prefix = lookup(rule.value, "prefix", "")
+      }
+
+      expiration {
+        days = rule.value.expiration_days
+      }
+    }
+  }
+
+  depends_on = [module.s3]
+}
+
+# ----------------------------------------------------------------------------
 # • 1.2 IAM Role for Snowflake storage integration (initial with placeholder trust)
 # ----------------------------------------------------------------------------
 module "iam_role" {
